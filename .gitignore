@@ -1,0 +1,4 @@
+/target
+tsconfig.json
+example/
+dist/
