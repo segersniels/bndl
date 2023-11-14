@@ -59,6 +59,10 @@ fn fetch_internal_packages(packages_dir: &Path) -> HashMap<String, PathBuf> {
         }
 
         let package_json_path = path.join("package.json");
+        if !package_json_path.exists() {
+            continue;
+        }
+
         let package_json = fetch_package_json(package_json_path.as_path());
         packages.insert(package_json.name, path.to_owned());
     }
