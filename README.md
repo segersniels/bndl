@@ -29,3 +29,5 @@ But, if you don't want to deal with the overhead and want to keep your transitio
 ## Contributing
 
 Expect a lot of missing functionality and potential things breaking. This was made with a specific use case in mind and there might be cases where functionality drifts from what you might need. Feel free to make issues or PRs adding your requested functionality.
+
+Please provide the provided panic log or debug logging with `RUST_LOG=debug bndl ...` so your issue can get resolved quicker.
