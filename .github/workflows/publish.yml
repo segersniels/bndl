@@ -52,13 +52,13 @@ jobs:
           command: build
       - name: Rename result
         run: |
-          rm target/${{ matrix.job.target }}/release/${{ inputs.package }}.d
-          cp target/${{ matrix.job.target }}/release/${{ inputs.package }}* ${{ inputs.package }}-${{ matrix.job.exe }}
+          rm target/${{ matrix.job.target }}/release/${{ inputs.crate }}.d
+          cp target/${{ matrix.job.target }}/release/${{ inputs.crate }}* ${{ inputs.crate }}-${{ matrix.job.exe }}
       - name: Archive production artifacts
         uses: actions/upload-artifact@v3
         with:
           name: bin
-          path: ${{ inputs.package }}-${{ matrix.job.exe }}
+          path: ${{ inputs.crate }}-${{ matrix.job.exe }}
 
   release:
     needs: build
@@ -72,11 +72,11 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: bin
-          path: crates/${{ inputs.package }}/bin
+          path: crates/${{ inputs.crate }}/bin
       - name: Get current package version
         id: current_version
         run: echo "version=$(make version)" >> $GITHUB_OUTPUT
-        working-directory: crates/${{ inputs.package }}
+        working-directory: crates/${{ inputs.crate }}
       - uses: mukunku/tag-exists-action@v1.4.0
         id: check_tag
         with:
@@ -87,11 +87,11 @@ jobs:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           automatic_release_tag: "${{ steps.current_version.outputs.version }}"
           prerelease: false
-          working-directory: crates/${{ inputs.package }}
+          working-directory: crates/${{ inputs.crate }}
           files: |
-            ./bin/${{ inputs.package }}-macos
-            ./bin/${{ inputs.package }}-aarch64-linux
-            ./bin/${{ inputs.package }}-amd64-linux
+            ./bin/${{ inputs.crate }}-macos
+            ./bin/${{ inputs.crate }}-aarch64-linux
+            ./bin/${{ inputs.crate }}-amd64-linux
 
   cargo:
     needs: release
@@ -104,7 +104,7 @@ jobs:
         with:
           toolchain: stable
       - name: Publish to Cargo
-        run: cargo publish --allow-dirty --package ${{ inputs.package }} || true
+        run: cargo publish --allow-dirty --package ${{ inputs.crate }} || true
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
@@ -122,11 +122,11 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: bin
-          path: crates/${{ inputs.package }}/bin
+          path: crates/${{ inputs.crate }}/bin
       - name: Publish to NPM
         run: |
           npm version ${{ needs.release.outputs.current_version }} --no-git-tag-version --no-commit-hooks --allow-same-version
           npm publish || true
-        working-directory: crates/${{ inputs.package }}
+        working-directory: crates/${{ inputs.crate }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
