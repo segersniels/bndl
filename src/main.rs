@@ -49,17 +49,11 @@ fn cli() -> Command {
                 .help("Minify the output bundle")
                 .action(ArgAction::SetTrue)
         )
-        .arg(
-            clap::Arg::new("packagesDir")
-                .long("packagesDir")
-                .help("The path to the shared packages directory where `bndl` needs to look for the used compiled dependencies")
-                .action(ArgAction::Set)
-        )
 }
 
 /// Determines the variables to use for the bundling process based
 /// on the command line arguments provided
-fn determine_variables(matches: &ArgMatches) -> (String, String, String) {
+fn determine_variables(matches: &ArgMatches) -> (String, String) {
     let default_config = String::from("tsconfig.json");
     let config_path = matches
         .get_one::<String>("project")
@@ -70,16 +64,7 @@ fn determine_variables(matches: &ArgMatches) -> (String, String, String) {
         .get_one::<String>("outDir")
         .unwrap_or(&default_out_dir);
 
-    let default_packages_dir = String::from("packages");
-    let packages_dir = matches
-        .get_one::<String>("packagesDir")
-        .unwrap_or(&default_packages_dir);
-
-    (
-        config_path.to_owned(),
-        out_dir.to_owned(),
-        packages_dir.to_owned(),
-    )
+    (config_path.to_owned(), out_dir.to_owned())
 }
 
 fn main() {
@@ -87,7 +72,7 @@ fn main() {
     setup_panic!();
 
     let matches = cli().get_matches();
-    let (config_path, out_dir, packages_dir) = determine_variables(&matches);
+    let (config_path, out_dir) = determine_variables(&matches);
 
     // Clean the output directory if the flag is set
     if matches.get_flag("clean") {
@@ -117,6 +102,6 @@ fn main() {
 
     // Bundle the monorepo dependencies if the flag is set
     if matches.get_flag("bundle") {
-        utils::bundle::bundle(&out_dir, &packages_dir);
+        utils::bundle::bundle(&out_dir);
     }
 }

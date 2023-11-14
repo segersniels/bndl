@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::{env, io};
-use walkdir::WalkDir;
+use walkdir::{DirEntry, WalkDir};
 
 use super::config::{fetch_package_json, PackageJson};
 
@@ -44,37 +44,43 @@ fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> 
     Ok(())
 }
 
-fn fetch_internal_packages(packages_dir: &Path) -> HashMap<String, PathBuf> {
+/// Function to check if a directory entry is a 'node_modules' directory
+/// and skip it. We aren't interested in any of these contents and are only
+/// interested in the internal packages of the monorepo
+fn is_node_modules(entry: &DirEntry) -> bool {
+    entry.file_type().is_dir() && entry.file_name() == "node_modules"
+}
+
+fn fetch_internal_packages(root: &Path) -> HashMap<String, PathBuf> {
     let mut packages = HashMap::new();
-
-    for entry in WalkDir::new(packages_dir)
+    let walker = WalkDir::new(root)
         .min_depth(1)
-        .max_depth(1)
         .into_iter()
-        .filter_map(|e| e.ok())
-    {
+        .filter_entry(|e| !is_node_modules(e))
+        .filter_map(|e| e.ok());
+
+    for entry in walker {
         let path = entry.path();
-        if path.is_file() {
+
+        // Only interested in package.json files
+        if path.is_dir() || path.file_name().unwrap_or_default() != "package.json" {
             continue;
         }
 
-        let package_json_path = path.join("package.json");
-        if !package_json_path.exists() {
-            continue;
-        }
-
-        let package_json = fetch_package_json(package_json_path.as_path());
-        packages.insert(package_json.name, path.to_owned());
+        let package_json = fetch_package_json(&path);
+        packages.insert(package_json.name, path.parent().unwrap().to_owned());
     }
+
+    debug!("Found internal packages: {:?}", packages);
 
     packages
 }
 
 fn determine_internal_dependencies(
     package_json: &PackageJson,
-    packages_dir: &Path,
+    root: &Path,
 ) -> HashMap<String, PathBuf> {
-    let packages = fetch_internal_packages(packages_dir);
+    let packages = fetch_internal_packages(root);
     let dependencies = package_json.clone().dependencies.unwrap_or_default();
 
     packages
@@ -84,16 +90,15 @@ fn determine_internal_dependencies(
         .collect()
 }
 
-pub fn bundle(out_dir: &str, packages_dir: &str) {
+pub fn bundle(out_dir: &str) {
     let package_json_path = Path::new("package.json");
     let app_dir = package_json_path.parent().unwrap();
     let package_json = fetch_package_json(package_json_path);
 
     let root = find_workspace_root().unwrap();
-    let packages_dir = root.join(packages_dir);
-    let dependencies = determine_internal_dependencies(&package_json, &packages_dir);
+    let dependencies = determine_internal_dependencies(&package_json, &root);
 
-    debug!("Found internal dependencies: {:?}", dependencies);
+    debug!("Used internal dependencies: {:?}", dependencies);
 
     for (name, path) in dependencies.iter() {
         let compiled_dependency_path = Path::new(path).join(out_dir);

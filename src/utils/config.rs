@@ -1,3 +1,4 @@
+use log::debug;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::{collections::HashMap, fs};
@@ -8,7 +9,7 @@ use swc::{
 use swc_ecma_ast;
 use swc_ecma_parser::{Syntax, TsConfig};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct PackageJson {
     pub name: String,
     pub workspaces: Option<Vec<String>>,
@@ -20,10 +21,7 @@ pub fn fetch_package_json(path: &Path) -> PackageJson {
 
     match serde_json::from_str(&package_json_str) {
         Ok(package_json) => package_json,
-        Err(e) => {
-            eprintln!("Error parsing package.json: {}", e);
-            std::process::exit(1);
-        }
+        Err(_) => PackageJson::default(),
     }
 }
 
