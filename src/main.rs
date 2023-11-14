@@ -1,4 +1,4 @@
-use clap::{ArgAction, Command};
+use clap::{ArgAction, ArgMatches, Command};
 use human_panic::setup_panic;
 
 mod utils;
@@ -57,15 +57,9 @@ fn cli() -> Command {
         )
 }
 
-fn main() {
-    setup_panic!();
-
-    let matches = cli().get_matches();
-    let filename = match matches.subcommand() {
-        Some((query, _)) => query,
-        _ => ".",
-    };
-
+/// Determines the variables to use for the bundling process based
+/// on the command line arguments provided
+fn determine_variables(matches: &ArgMatches) -> (String, String, String) {
     let default_config = String::from("tsconfig.json");
     let config_path = matches
         .get_one::<String>("project")
@@ -76,34 +70,53 @@ fn main() {
         .get_one::<String>("outDir")
         .unwrap_or(&default_out_dir);
 
+    let default_packages_dir = String::from("packages");
+    let packages_dir = matches
+        .get_one::<String>("packagesDir")
+        .unwrap_or(&default_packages_dir);
+
+    (
+        config_path.to_owned(),
+        out_dir.to_owned(),
+        packages_dir.to_owned(),
+    )
+}
+
+fn main() {
+    env_logger::init();
+    setup_panic!();
+
+    let matches = cli().get_matches();
+    let (config_path, out_dir, packages_dir) = determine_variables(&matches);
+
     // Clean the output directory if the flag is set
     if matches.get_flag("clean") {
-        utils::compile::clean_out_dir(out_dir);
+        utils::compile::clean_out_dir(&out_dir);
     }
 
     // Transpile the code to javascript
     let fallback_legacy_dts = matches.get_flag("legacy-dts");
     let minify_output = matches.get_flag("minify");
+    let filename = match matches.subcommand() {
+        Some((query, _)) => query,
+        _ => ".",
+    };
+
     utils::compile::transpile(
         filename,
-        out_dir,
-        config_path,
+        &out_dir,
+        &config_path,
         fallback_legacy_dts,
         minify_output,
     );
 
     // Rely on `tsc` to provide .d.ts files since SWC's implementation is a bit weird
     if fallback_legacy_dts {
-        utils::compile::create_tsc_dts(config_path, out_dir);
+        utils::compile::create_tsc_dts(&config_path, &out_dir);
     }
-
-    let default_packages_dir = String::from("packages");
-    let packages_dir = matches
-        .get_one::<String>("packagesDir")
-        .unwrap_or(&default_packages_dir);
 
     // Bundle the monorepo dependencies if the flag is set
     if matches.get_flag("bundle") {
-        utils::bundle::bundle(out_dir, packages_dir);
+        utils::bundle::bundle(&out_dir, &packages_dir);
     }
 }

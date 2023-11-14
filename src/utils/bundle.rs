@@ -1,3 +1,4 @@
+use log::debug;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -88,6 +89,8 @@ pub fn bundle(out_dir: &str, packages_dir: &str) {
     let packages_dir = root.join(packages_dir);
     let dependencies = determine_internal_dependencies(&package_json, &packages_dir);
 
+    debug!("Found internal dependencies: {:?}", dependencies);
+
     for (name, path) in dependencies.iter() {
         let compiled_dependency_path = Path::new(path).join(out_dir);
         let destination = app_dir.join(out_dir).join("node_modules").join(name);
@@ -98,6 +101,8 @@ pub fn bundle(out_dir: &str, packages_dir: &str) {
         } else {
             path.to_owned()
         };
+
+        debug!("Copying {:?} to {:?}", source, destination);
 
         copy_dir_all(source, destination).expect("Unable to copy");
     }
