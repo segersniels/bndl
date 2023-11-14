@@ -131,7 +131,7 @@ fn determine_base_url(base_url: Option<String>) -> PathBuf {
     Path::new(base_url.unwrap_or_default().trim_start_matches("./")).to_path_buf()
 }
 
-fn determine_paths(base_url: &PathBuf, paths: Option<Paths>) -> Paths {
+fn determine_paths(base_url: &Path, paths: Option<Paths>) -> Paths {
     if base_url.to_string_lossy().len() == 0 {
         return Default::default();
     }
