@@ -43,8 +43,8 @@ $ bndl_cli --clean --outDir dist --project tsconfig.json --minify
 ### NPM
 
 ```bash
-npm install -g @bndl/cli
-bndl --clean --outDir dist --project tsconfig.json --minify
+$ npm install -g @bndl/cli
+$ bndl --clean --outDir dist --project tsconfig.json --minify
 ```
 
 ## Contributing
