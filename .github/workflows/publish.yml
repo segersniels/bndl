@@ -1,11 +1,16 @@
 on:
-  push:
-    branches:
-      - master
-  pull_request:
+  workflow_dispatch:
+    inputs:
+      crate:
+        description: "Crate to publish"
+        required: true
+        type: choice
+        options:
+          - bndl_cli
+          - bndl_convert
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: publish-${{ inputs.crate }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -18,7 +23,6 @@ jobs:
 
   build:
     needs: lint
-    if: github.ref == 'refs/heads/master'
     strategy:
       fail-fast: false
       matrix:
@@ -36,7 +40,7 @@ jobs:
           - { target: x86_64-apple-darwin, exe: macos, os: macos-latest }
     runs-on: ${{ matrix.job.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -48,30 +52,31 @@ jobs:
           command: build
       - name: Rename result
         run: |
-          rm target/${{ matrix.job.target }}/release/bndl.d
-          cp target/${{ matrix.job.target }}/release/bndl* bndl-${{ matrix.job.exe }}
+          rm target/${{ matrix.job.target }}/release/${{ inputs.package }}.d
+          cp target/${{ matrix.job.target }}/release/${{ inputs.package }}* ${{ inputs.package }}-${{ matrix.job.exe }}
       - name: Archive production artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: bin
-          path: bndl-${{ matrix.job.exe }}
+          path: ${{ inputs.package }}-${{ matrix.job.exe }}
 
   release:
     needs: build
     environment: production
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
     outputs:
       tag_exists: ${{ steps.check_tag.outputs.exists }}
+      current_version: ${{ steps.current_version.outputs.version }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v3
         with:
           name: bin
-          path: bin
+          path: crates/${{ inputs.package }}/bin
       - name: Get current package version
         id: current_version
         run: echo "version=$(make version)" >> $GITHUB_OUTPUT
+        working-directory: crates/${{ inputs.package }}
       - uses: mukunku/tag-exists-action@v1.4.0
         id: check_tag
         with:
@@ -82,23 +87,24 @@ jobs:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           automatic_release_tag: "${{ steps.current_version.outputs.version }}"
           prerelease: false
+          working-directory: crates/${{ inputs.package }}
           files: |
-            ./bin/bndl-macos
-            ./bin/bndl-aarch64-linux
-            ./bin/bndl-amd64-linux
+            ./bin/${{ inputs.package }}-macos
+            ./bin/${{ inputs.package }}-aarch64-linux
+            ./bin/${{ inputs.package }}-amd64-linux
 
   cargo:
     needs: release
     environment: production
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' && needs.release.outputs.tag_exists == 'false'
+    if: needs.release.outputs.tag_exists == 'false'
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
       - name: Publish to Cargo
-        run: cargo publish --allow-dirty || true
+        run: cargo publish --allow-dirty --package ${{ inputs.package }} || true
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
@@ -106,9 +112,9 @@ jobs:
     needs: [release, cargo]
     environment: production
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' && needs.release.outputs.tag_exists == 'false'
+    if: needs.release.outputs.tag_exists == 'false'
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v3
         with:
           node-version: "20.x"
@@ -116,13 +122,11 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: bin
-          path: bin
-      - name: Get current package version
-        id: current_version
-        run: echo "version=$(make version)" >> $GITHUB_OUTPUT
+          path: crates/${{ inputs.package }}/bin
       - name: Publish to NPM
         run: |
-          npm version ${{ steps.current_version.outputs.version }} --no-git-tag-version --no-commit-hooks --allow-same-version
+          npm version ${{ needs.release.outputs.current_version }} --no-git-tag-version --no-commit-hooks --allow-same-version
           npm publish || true
+        working-directory: crates/${{ inputs.package }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

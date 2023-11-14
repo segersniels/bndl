@@ -1,16 +1,16 @@
 {
-  "name": "bndl",
+  "name": "@bndl/convert",
   "version": "1.0.0",
-  "description": "A basic TypeScript transpiling and bundling tool for (primarily backend) monorepos",
+  "description": "Convert a tsconfig.json to an SWC compatible config",
   "files": [
     "bin",
     "scripts/preinstall.sh"
   ],
   "bin": {
-    "supdock": "./bin/bndl"
+    "bndl_convert": "./bin/bndl_convert"
   },
   "scripts": {
-    "preinstall": "./scripts/preinstall.sh"
+    "preinstall": "PREINSTALL_BINARY=bndl_convert ./scripts/preinstall.sh"
   },
   "author": "Niels Segers",
   "license": "ISC",

@@ -31,6 +31,13 @@ I would see `bndl` as a last resort if you can't get the more popular (and proba
 
 But, if you don't want to deal with the overhead and want to keep your transition from `tsc` to a bundled setup as simple as possible, `bndl` might be the tool for you.
 
+## Usage
+
+```bash
+$ cargo install bndl_cli # or npm install -g @bndl/cli
+$ bndl_cli --clean --outDir dist --project tsconfig.json --minify
+```
+
 ## Contributing
 
 Expect a lot of missing functionality and potential things breaking. This was made with a specific use case in mind and there might be cases where functionality drifts from what you might need. Feel free to make issues or PRs adding your requested functionality.

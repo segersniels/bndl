@@ -1,11 +1,10 @@
+use bndl_convert::{convert, fetch_tsconfig};
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use std::{fs, process};
 use std::{path::Path, sync::Arc};
 use swc::{self, config::Options};
 use swc_common::{SourceMap, GLOBALS};
 use walkdir::WalkDir;
-
-use super::config::{convert_ts_config_to_swc_config, fetch_tsconfig};
 
 /// Removes the output directory if it exists
 pub fn clean_out_dir(out_dir: &str) {
@@ -123,8 +122,7 @@ pub fn transpile(
 
     match fetch_tsconfig(config_path) {
         Ok(ts_config) => {
-            let config =
-                convert_ts_config_to_swc_config(&ts_config, fallback_legacy_dts, minify_output);
+            let config = convert(&ts_config, Some(minify_output), Some(!fallback_legacy_dts));
             let options: Options = Options {
                 config,
                 ..Default::default()

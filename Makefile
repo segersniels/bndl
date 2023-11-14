@@ -1,4 +1,5 @@
 .DEFAULT_GOAL := build
+CRATES := $(shell ls ./crates)
 
 clean:
 	cargo clean

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 BIN_DIR="./bin"
-BINARY="bndl"
+BINARY=$PREINSTALL_BINARY
 PLATFORM=$(uname)
 
 function check_if_binary_exists() {
@@ -17,9 +17,9 @@ function determine_platform() {
     case $PLATFORM in
     Linux)
         if [[ $(uname -m) == "aarch64" ]]; then
-        PLATFORM_BINARY="$BINARY-aarch64-linux"
+            PLATFORM_BINARY="$BINARY-aarch64-linux"
         else
-        PLATFORM_BINARY="$BINARY-amd64-linux"
+            PLATFORM_BINARY="$BINARY-amd64-linux"
         fi
         ;;
     Darwin)

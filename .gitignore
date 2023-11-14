@@ -1,4 +1,4 @@
-/target
-tsconfig.json
+target/
 example/
 dist/
+tsconfig.json

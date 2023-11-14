@@ -1,29 +1,13 @@
-use log::debug;
 use serde::{Deserialize, Serialize};
+use std::fs;
 use std::path::{Path, PathBuf};
-use std::{collections::HashMap, fs};
+use swc::config::{Config, ModuleConfig, SourceMapsConfig};
 use swc::{
     config::{JscConfig, Paths},
     BoolConfig,
 };
 use swc_ecma_ast;
 use swc_ecma_parser::{Syntax, TsConfig};
-
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct PackageJson {
-    pub name: String,
-    pub workspaces: Option<Vec<String>>,
-    pub dependencies: Option<HashMap<String, String>>,
-}
-
-pub fn fetch_package_json(path: &Path) -> PackageJson {
-    let package_json_str = fs::read_to_string(path).expect("Unable to read package.json");
-
-    match serde_json::from_str(&package_json_str) {
-        Ok(package_json) => package_json,
-        Err(_) => PackageJson::default(),
-    }
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CompilerOptions {
@@ -42,6 +26,30 @@ pub struct TsConfigJson {
     pub extends: Option<String>,
     pub compilerOptions: CompilerOptions,
     pub exclude: Option<Vec<String>>,
+}
+
+// Define your own wrapper struct that derives Serialize
+#[derive(Serialize)]
+pub struct SerializableConfig {
+    #[serde(default)]
+    pub jsc: JscConfig,
+    #[serde(default)]
+    pub source_maps: Option<SourceMapsConfig>,
+    #[serde(default)]
+    pub module: Option<ModuleConfig>,
+    #[serde(default)]
+    pub minify: BoolConfig<false>,
+}
+
+impl From<&Config> for SerializableConfig {
+    fn from(internal: &Config) -> Self {
+        SerializableConfig {
+            jsc: internal.jsc.clone(),
+            source_maps: internal.source_maps.clone(),
+            module: internal.module.clone(),
+            minify: internal.minify.clone(),
+        }
+    }
 }
 
 fn merge_compiler_options(base: &CompilerOptions, child: &CompilerOptions) -> CompilerOptions {
@@ -80,6 +88,22 @@ fn load_and_merge_tsconfig(config_path: &Path) -> serde_json::Result<TsConfigJso
     Ok(tsconfig)
 }
 
+/// Fetch a `tsconfig.json` and merge it with any `extends` configurations
+///
+/// ```rust
+/// use bndl_convert::{convert, fetch_tsconfig}
+///
+/// fn main() {
+///      match fetch_tsconfig("./tsconfig.json") {
+///         Ok(ts_config) => {
+///             let config = convert(&ts_config, None, None);
+///         }
+///         Err(e) => {
+///             eprintln!("{}", e)
+///         }
+///     }
+/// }
+/// ```
 pub fn fetch_tsconfig(config_path: &str) -> serde_json::Result<TsConfigJson> {
     let tsconfig = load_and_merge_tsconfig(Path::new(config_path));
 
@@ -137,10 +161,35 @@ fn determine_paths(base_url: &Path, paths: Option<Paths>) -> Paths {
     paths.unwrap_or_default()
 }
 
-pub fn convert_ts_config_to_swc_config(
+/// Transform a `tsconfig.json` into an SWC compatible `JSConfig`
+///
+/// * `minify_output` - Tell SWC to minify the output bundle
+/// * `enable_experimental_swc_declarations` - The internal `d.ts` behavior of SWC is weird,
+/// you can disable this in most cases (there is probably a reason why it's not exposed to the NPM package)
+///
+/// ```rust
+/// use bndl_convert::{convert, fetch_tsconfig}
+/// use swc::config::Options;
+///
+/// fn main() {
+///      match fetch_tsconfig("./tsconfig.json") {
+///         Ok(ts_config) => {
+///             let config = convert(&ts_config, None, None);
+///             let options: Options = Options {
+///                 config,
+///                 ..Default::default()
+///             };
+///         }
+///         Err(e) => {
+///             eprintln!("{}", e)
+///         }
+///     }
+/// }
+/// ```
+pub fn convert(
     ts_config: &TsConfigJson,
-    fallback_legacy_dts: bool,
-    minify_output: bool,
+    minify_output: Option<bool>,
+    enable_experimental_swc_declarations: Option<bool>,
 ) -> swc::config::Config {
     let base_url = determine_base_url(ts_config.clone().compilerOptions.baseUrl);
     let paths = determine_paths(&base_url, ts_config.clone().compilerOptions.paths);
@@ -174,7 +223,7 @@ pub fn convert_ts_config_to_swc_config(
             keep_class_names: BoolConfig::new(Some(true)),
             target: convert_target_to_es_version(&ts_config.compilerOptions.target),
             syntax: Some(Syntax::Typescript(TsConfig {
-                dts: !fallback_legacy_dts
+                dts: enable_experimental_swc_declarations.unwrap_or(false)
                     && ts_config.compilerOptions.declaration.unwrap_or_default(),
                 decorators: ts_config
                     .compilerOptions

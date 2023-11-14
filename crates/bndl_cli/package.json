@@ -1,0 +1,33 @@
+{
+  "name": "@bndl/cli",
+  "version": "1.0.0",
+  "description": "A basic TypeScript transpiling and bundling tool for (primarily backend) monorepos",
+  "files": [
+    "bin",
+    "scripts/preinstall.sh"
+  ],
+  "bin": {
+    "bndl": "./bin/bndl_cli"
+  },
+  "scripts": {
+    "preinstall": "PREINSTALL_BINARY=bndl_cli ./scripts/preinstall.sh"
+  },
+  "author": "Niels Segers",
+  "license": "ISC",
+  "homepage": "https://github.com/segersniels/bndl#readme",
+  "bugs": {
+    "url": "https://github.com/segersniels/bndl/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/segersniels/bndl.git"
+  },
+  "keywords": [
+    "turbo",
+    "monorepo",
+    "bundle",
+    "compile",
+    "transpile",
+    "typescript"
+  ]
+}
