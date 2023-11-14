@@ -57,7 +57,7 @@ fn compile_file(
 ) {
     // Check if we should ignore the file based on the tsconfig exclude
     // We need to do this because the swc `exclude`` is odd and doesn't work as expected
-    if check_to_ignore_file(&input_path, &glob_set) {
+    if check_to_ignore_file(input_path, glob_set) {
         return;
     }
 
@@ -104,7 +104,7 @@ fn compile_directory(
                 .extension()
                 .map_or(false, |ext| ext == "ts" || ext == "tsx" || ext == "js"))
         {
-            compile_file(path, Path::new(out_dir), &compiler, &options, &glob_set);
+            compile_file(path, Path::new(out_dir), compiler, options, glob_set);
         }
     }
 }

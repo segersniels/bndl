@@ -128,12 +128,7 @@ fn convert_module(module: &Option<String>) -> Option<swc::config::ModuleConfig> 
 }
 
 fn determine_base_url(base_url: Option<String>) -> PathBuf {
-    Path::new(
-        base_url
-            .unwrap_or(Default::default())
-            .trim_start_matches("./"),
-    )
-    .to_path_buf()
+    Path::new(base_url.unwrap_or_default().trim_start_matches("./")).to_path_buf()
 }
 
 fn determine_paths(base_url: &PathBuf, paths: Option<Paths>) -> Paths {
@@ -141,7 +136,7 @@ fn determine_paths(base_url: &PathBuf, paths: Option<Paths>) -> Paths {
         return Default::default();
     }
 
-    paths.unwrap_or(Default::default())
+    paths.unwrap_or_default()
 }
 
 pub fn convert_ts_config_to_swc_config(
@@ -153,7 +148,7 @@ pub fn convert_ts_config_to_swc_config(
     let paths = determine_paths(&base_url, ts_config.clone().compilerOptions.paths);
     let inline_sources = ts_config.compilerOptions.inlineSources.unwrap_or(false);
 
-    return swc::config::Config {
+    swc::config::Config {
         minify: BoolConfig::from(minify_output),
         module: convert_module(&ts_config.compilerOptions.module),
         source_maps: if inline_sources {
@@ -172,7 +167,7 @@ pub fn convert_ts_config_to_swc_config(
                     ts_config
                         .compilerOptions
                         .experimentalDecorators
-                        .unwrap_or(Default::default()),
+                        .unwrap_or_default(),
                 )),
                 ..Default::default()
             })
@@ -182,18 +177,15 @@ pub fn convert_ts_config_to_swc_config(
             target: convert_target_to_es_version(&ts_config.compilerOptions.target),
             syntax: Some(Syntax::Typescript(TsConfig {
                 dts: !fallback_legacy_dts
-                    && ts_config
-                        .compilerOptions
-                        .declaration
-                        .unwrap_or(Default::default()),
+                    && ts_config.compilerOptions.declaration.unwrap_or_default(),
                 decorators: ts_config
                     .compilerOptions
                     .experimentalDecorators
-                    .unwrap_or(Default::default()),
+                    .unwrap_or_default(),
                 ..Default::default()
             })),
             ..Default::default()
         },
         ..Default::default()
-    };
+    }
 }

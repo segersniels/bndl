@@ -134,7 +134,7 @@ fn determine_internal_dependencies(
     packages_dir: &Path,
 ) -> HashMap<String, PathBuf> {
     let packages = fetch_internal_packages(packages_dir);
-    let dependencies = package_json.clone().dependencies.unwrap_or(HashMap::new());
+    let dependencies = package_json.clone().dependencies.unwrap_or_default();
 
     packages
         .iter()
