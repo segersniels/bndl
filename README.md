@@ -29,7 +29,7 @@ You end up with a compiled _JavaScript_ project that has access to all of its in
 
 I would see `bndl` as a last resort if you can't get the more popular (and probably better maintained) tools like `tsup` or `webpack` running in your monorepo.
 
-But, if you don't want to deal with the overhead and want to keep your transition from `tsc` to a bundled setup as simple as possible, `bndl` might be the tool for you.
+But, if you don't want to deal with the overhead and want to keep your transition from `tsc` to a bundled setup as simple as possible, `bndl` might be the tool for you. Read more about it [here](https://niels.foo/post/typescript-monorepo-bundling-for-dummies).
 
 ## Usage
 
