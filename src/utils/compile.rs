@@ -114,6 +114,7 @@ pub fn transpile(
     out_dir: &str,
     config_path: &str,
     fallback_legacy_dts: bool,
+    minify_output: bool,
 ) {
     input_path = input_path.trim_start_matches("./");
 
@@ -122,7 +123,8 @@ pub fn transpile(
 
     match fetch_tsconfig(config_path) {
         Ok(ts_config) => {
-            let config = convert_ts_config_to_swc_config(&ts_config, fallback_legacy_dts);
+            let config =
+                convert_ts_config_to_swc_config(&ts_config, fallback_legacy_dts, minify_output);
             let options: Options = Options {
                 config,
                 ..Default::default()

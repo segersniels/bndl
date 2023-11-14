@@ -42,6 +42,13 @@ fn cli() -> Command {
                 .help("Attempt barebones bundling of the project")
                 .action(ArgAction::SetTrue)
         )
+        .arg(
+            clap::Arg::new("minify")
+                .short('m')
+                .long("minify")
+                .help("Minify the output bundle")
+                .action(ArgAction::SetTrue)
+        )
 }
 
 fn main() {
@@ -70,7 +77,14 @@ fn main() {
 
     // Transpile the code to javascript
     let fallback_legacy_dts = matches.get_flag("legacy-dts");
-    utils::compile::transpile(filename, out_dir, config_path, fallback_legacy_dts);
+    let minify_output = matches.get_flag("minify");
+    utils::compile::transpile(
+        filename,
+        out_dir,
+        config_path,
+        fallback_legacy_dts,
+        minify_output,
+    );
 
     // Rely on `tsc` to provide .d.ts files since SWC's implementation is a bit weird
     if fallback_legacy_dts {

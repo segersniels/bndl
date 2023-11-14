@@ -147,12 +147,14 @@ fn determine_paths(base_url: &PathBuf, paths: Option<Paths>) -> Paths {
 pub fn convert_ts_config_to_swc_config(
     ts_config: &TsConfigJson,
     fallback_legacy_dts: bool,
+    minify_output: bool,
 ) -> swc::config::Config {
     let base_url = determine_base_url(ts_config.clone().compilerOptions.baseUrl);
     let paths = determine_paths(&base_url, ts_config.clone().compilerOptions.paths);
     let inline_sources = ts_config.compilerOptions.inlineSources.unwrap_or(false);
 
     return swc::config::Config {
+        minify: BoolConfig::from(minify_output),
         module: convert_module(&ts_config.compilerOptions.module),
         source_maps: if inline_sources {
             Some(swc::config::SourceMapsConfig::Str(String::from("inline")))
