@@ -107,26 +107,62 @@ fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> 
     Ok(())
 }
 
+fn fetch_internal_packages(packages_dir: &Path) -> HashMap<String, PathBuf> {
+    let mut packages = HashMap::new();
+
+    for entry in WalkDir::new(packages_dir)
+        .min_depth(1)
+        .max_depth(1)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+        if path.is_file() {
+            continue;
+        }
+
+        let package_json_path = path.join("package.json");
+        let package_json = fetch_package_json(package_json_path.as_path());
+        packages.insert(package_json.name, path.to_owned());
+    }
+
+    packages
+}
+
+fn determine_internal_dependencies(
+    package_json: &PackageJson,
+    packages_dir: &Path,
+) -> HashMap<String, PathBuf> {
+    let packages = fetch_internal_packages(packages_dir);
+    let dependencies = package_json.clone().dependencies.unwrap_or(HashMap::new());
+
+    packages
+        .iter()
+        .filter(|(name, _)| dependencies.contains_key(*name))
+        .map(|(name, path)| (name.clone(), path.clone()))
+        .collect()
+}
+
 pub fn bundle(out_dir: &str, packages_dir: &str) {
+    let package_json_path = Path::new("package.json");
+    let app_dir = package_json_path.parent().unwrap();
+    let package_json = fetch_package_json(package_json_path);
+
     let root = find_workspace_root().unwrap();
-    let package_json = fetch_package_json(Path::new("package.json"));
+    let packages_dir = root.join(packages_dir);
+    let dependencies = determine_internal_dependencies(&package_json, &packages_dir);
 
-    match determine_internal_packages(&package_json, &root, packages_dir) {
-        Ok(paths_by_package) => {
-            for (name, path) in paths_by_package.iter() {
-                let package_name = extract_name_from_scoped_package_name(&package_json.name);
-                let destination = Path::new(&root)
-                    .join("apps")
-                    .join(package_name)
-                    .join(out_dir)
-                    .join("node_modules")
-                    .join(name);
+    for (name, path) in dependencies.iter() {
+        let compiled_dependency_path = Path::new(path).join(out_dir);
+        let destination = app_dir.join(out_dir).join("node_modules").join(name);
 
-                copy_dir_all(path, destination).expect("Unable to copy");
-            }
-        }
-        Err(e) => {
-            eprintln!("Error: {}", e);
-        }
-    };
+        // Check if we have to copy over the compiled dependency or the source code directly
+        let source = if compiled_dependency_path.exists() {
+            compiled_dependency_path
+        } else {
+            path.to_owned()
+        };
+
+        copy_dir_all(source, destination).expect("Unable to copy");
+    }
 }

@@ -97,13 +97,13 @@ fn main() {
         utils::compile::create_tsc_dts(config_path, out_dir);
     }
 
+    let default_packages_dir = String::from("packages");
+    let packages_dir = matches
+        .get_one::<String>("packagesDir")
+        .unwrap_or(&default_packages_dir);
+
     // Bundle the monorepo dependencies if the flag is set
     if matches.get_flag("bundle") {
-        utils::bundle::bundle(
-            out_dir,
-            matches
-                .get_one::<String>("packagesDir")
-                .unwrap_or(&String::from("packages")),
-        );
+        utils::bundle::bundle(out_dir, packages_dir);
     }
 }

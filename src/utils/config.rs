@@ -8,7 +8,7 @@ use swc::{
 use swc_ecma_ast;
 use swc_ecma_parser::{Syntax, TsConfig};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PackageJson {
     pub name: String,
     pub workspaces: Option<Vec<String>>,
