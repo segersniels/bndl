@@ -49,6 +49,12 @@ fn cli() -> Command {
                 .help("Minify the output bundle")
                 .action(ArgAction::SetTrue)
         )
+        .arg(
+            clap::Arg::new("packagesDir")
+                .long("packagesDir")
+                .help("The path to the shared packages directory where `bndl` needs to look for the used compiled dependencies")
+                .action(ArgAction::Set)
+        )
 }
 
 fn main() {
@@ -93,6 +99,11 @@ fn main() {
 
     // Bundle the monorepo dependencies if the flag is set
     if matches.get_flag("bundle") {
-        utils::bundle::bundle(out_dir);
+        utils::bundle::bundle(
+            out_dir,
+            matches
+                .get_one::<String>("packagesDir")
+                .unwrap_or(&String::from("packages")),
+        );
     }
 }
