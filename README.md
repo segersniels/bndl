@@ -1,6 +1,11 @@
 # bndl
 
-Introducing `bndl` 📦, a basic TypeScript transpiling and bundling tool for (primarily backend) monorepos. It uses [SWC](https://swc.rs/) under the hood so it benefits from the speed improvements that it brings over `tsc`.
+Introducing `bndl`, a basic TypeScript transpiling and bundling tool for (primarily backend) monorepos. It uses [SWC](https://swc.rs/) under the hood so it benefits from the speed improvements that it brings over `tsc`.
+
+<p align="center">
+<img src="./resources/bndl.png" width="250">
+
+## About
 
 While other bundling tools focus on bundling their dependencies inside the files themselves, `bndl` approaches this in a different, maybe slightly odd way.
 
