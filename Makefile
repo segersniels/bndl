@@ -16,3 +16,6 @@ lint:
 lint-fix:
 	cargo clippy --fix --allow-dirty
 	cargo fmt
+
+version:
+	@cargo pkgid | sed 's/.*[@#]\(.*\)/\1/'
