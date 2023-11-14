@@ -17,13 +17,6 @@ fn cli() -> Command {
                 .action(ArgAction::Set),
         )
         .arg(
-            clap::Arg::new("legacy-dts")
-                .short('d')
-                .long("legacy-dts")
-                .help("Generate .d.ts files from TypeScript and JavaScript files in your project (bypasses SWC and uses `tsc`).")
-                .action(ArgAction::SetTrue),
-        )
-        .arg(
             clap::Arg::new("outDir")
                 .long("outDir")
                 .help("Specify an output folder for all emitted files.")
@@ -33,21 +26,21 @@ fn cli() -> Command {
             clap::Arg::new("clean")
                 .long("clean")
                 .help("Clean the output folder if it exists before bundling")
-                .action(ArgAction::SetTrue)
+                .action(ArgAction::SetTrue),
         )
         .arg(
             clap::Arg::new("bundle")
                 .short('b')
                 .long("bundle")
                 .help("Attempt barebones bundling of the project")
-                .action(ArgAction::SetTrue)
+                .action(ArgAction::SetTrue),
         )
         .arg(
             clap::Arg::new("minify")
                 .short('m')
                 .long("minify")
                 .help("Minify the output bundle")
-                .action(ArgAction::SetTrue)
+                .action(ArgAction::SetTrue),
         )
 }
 
@@ -80,25 +73,13 @@ fn main() {
     }
 
     // Transpile the code to javascript
-    let fallback_legacy_dts = matches.get_flag("legacy-dts");
     let minify_output = matches.get_flag("minify");
     let filename = match matches.subcommand() {
         Some((query, _)) => query,
         _ => ".",
     };
 
-    utils::compile::transpile(
-        filename,
-        &out_dir,
-        &config_path,
-        fallback_legacy_dts,
-        minify_output,
-    );
-
-    // Rely on `tsc` to provide .d.ts files since SWC's implementation is a bit weird
-    if fallback_legacy_dts {
-        utils::compile::create_tsc_dts(&config_path, &out_dir);
-    }
+    utils::compile::transpile(filename, &out_dir, &config_path, minify_output);
 
     // Bundle the monorepo dependencies if the flag is set
     if matches.get_flag("bundle") {

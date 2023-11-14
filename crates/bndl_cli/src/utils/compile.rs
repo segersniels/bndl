@@ -14,7 +14,7 @@ pub fn clean_out_dir(out_dir: &str) {
 }
 
 /// Creates .d.ts files for the project
-pub fn create_tsc_dts(project: &str, out_dir: &str) -> std::process::Output {
+fn create_tsc_dts(project: &str, out_dir: &str) -> std::process::Output {
     let args = vec![
         "tsc",
         "-d",
@@ -108,13 +108,7 @@ fn compile_directory(
     }
 }
 
-pub fn transpile(
-    mut input_path: &str,
-    out_dir: &str,
-    config_path: &str,
-    fallback_legacy_dts: bool,
-    minify_output: bool,
-) {
+pub fn transpile(mut input_path: &str, out_dir: &str, config_path: &str, minify_output: bool) {
     input_path = input_path.trim_start_matches("./");
 
     let cm = Arc::<SourceMap>::default();
@@ -122,7 +116,7 @@ pub fn transpile(
 
     match fetch_tsconfig(config_path) {
         Ok(ts_config) => {
-            let config = convert(&ts_config, Some(minify_output), Some(!fallback_legacy_dts));
+            let config = convert(&ts_config, Some(minify_output), None);
             let options: Options = Options {
                 config,
                 ..Default::default()
@@ -141,10 +135,15 @@ pub fn transpile(
             let path = Path::new(input_path);
 
             if path.is_file() {
-                return compile_file(path, Path::new(out_dir), &compiler, &options, &glob_set);
+                compile_file(path, Path::new(out_dir), &compiler, &options, &glob_set);
+            } else {
+                compile_directory(input_path, out_dir, &compiler, &options, &glob_set);
             }
 
-            compile_directory(input_path, out_dir, &compiler, &options, &glob_set)
+            // Rely on `tsc` to provide .d.ts files since SWC's implementation is a bit weird
+            if ts_config.compilerOptions.declaration.unwrap_or_default() {
+                create_tsc_dts(&config_path, &out_dir);
+            }
         }
         Err(e) => {
             eprintln!("{}", e)
