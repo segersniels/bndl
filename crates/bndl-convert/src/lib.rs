@@ -62,6 +62,8 @@ pub struct SerializableOptions {
     pub config: SerializableConfig,
     #[serde(default)]
     pub source_maps: Option<SourceMapsConfig>,
+    #[serde(default)]
+    pub output_path: Option<PathBuf>,
 }
 
 impl From<&Options> for SerializableOptions {
@@ -69,6 +71,7 @@ impl From<&Options> for SerializableOptions {
         SerializableOptions {
             config: SerializableConfig::from(&internal.config),
             source_maps: internal.source_maps.clone(),
+            output_path: internal.output_path.clone(),
         }
     }
 }
@@ -221,8 +224,14 @@ pub fn convert(
     let base_url = determine_base_url(ts_config.clone().compilerOptions.baseUrl);
     let paths = determine_paths(&base_url, ts_config.clone().compilerOptions.paths);
     let inline_sources = ts_config.compilerOptions.inlineSources.unwrap_or(false);
+    let out_dir = ts_config.clone().compilerOptions.outDir.unwrap_or_default();
 
     swc::config::Options {
+        output_path: if out_dir.is_empty() {
+            None
+        } else {
+            Some(Path::new(&out_dir).to_path_buf())
+        },
         source_maps: if inline_sources {
             Some(swc::config::SourceMapsConfig::Str(String::from("inline")))
         } else {
