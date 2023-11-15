@@ -82,7 +82,7 @@ jobs:
         with:
           tag: "${{ steps.current_version.outputs.version }}"
       - uses: "marvinpinto/action-automatic-releases@latest"
-        if: steps.check_tag.outputs.exists == 'false'
+        if: steps.check_tag.outputs.exists == 'false' && inputs.crate == 'bndl_cli'
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           automatic_release_tag: "${{ steps.current_version.outputs.version }}"
