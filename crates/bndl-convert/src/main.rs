@@ -1,9 +1,9 @@
 use std::{env, process};
 
-use bndl_convert::{fetch_tsconfig, SerializableConfig};
+use bndl_convert::{fetch_tsconfig, SerializableOptions};
 use clap::{ArgAction, Command};
 use serde_json::Value;
-use swc::config::Config;
+use swc::config::Options;
 
 fn cli() -> Command {
     Command::new(env!("CARGO_PKG_NAME"))
@@ -71,8 +71,8 @@ fn remove_unwanted_values(value: &mut Value) -> Value {
 }
 
 /// Remove `null` values and empty objects from the config before logging
-fn parse_config_before_logging(config: &Config) -> Value {
-    let mut value = serde_json::to_value(SerializableConfig::from(config)).unwrap();
+fn parse_options_before_logging(options: &Options) -> Value {
+    let mut value = serde_json::to_value(SerializableOptions::from(options)).unwrap();
 
     remove_unwanted_values(&mut value)
 }
@@ -87,10 +87,13 @@ fn main() {
 
     match fetch_tsconfig(filename) {
         Ok(tsconfig) => {
-            let converted_config = bndl_convert::convert(&tsconfig, Some(minify_output), None);
-            let cleaned_config = parse_config_before_logging(&converted_config);
+            let options = bndl_convert::convert(&tsconfig, Some(minify_output), None);
+            let cleaned_options = parse_options_before_logging(&options);
 
-            println!("{}", serde_json::to_string_pretty(&cleaned_config).unwrap());
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&cleaned_options).unwrap()
+            );
         }
         Err(e) => {
             eprintln!("{}", e);

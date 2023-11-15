@@ -125,12 +125,7 @@ pub fn transpile(
 
     let cm = Arc::<SourceMap>::default();
     let compiler = swc::Compiler::new(cm.clone());
-
-    let config = convert(ts_config, Some(minify_output), None);
-    let options: Options = Options {
-        config,
-        ..Default::default()
-    };
+    let options = convert(ts_config, Some(minify_output), None);
 
     // Build a glob set based on the tsconfig exclude
     let mut builder = GlobSetBuilder::new();

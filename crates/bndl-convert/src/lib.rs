@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
-use swc::config::{Config, ModuleConfig, SourceMapsConfig};
+use swc::config::{Config, ModuleConfig, Options, SourceMapsConfig};
 use swc::{
     config::{JscConfig, Paths},
     BoolConfig,
@@ -51,6 +51,24 @@ impl From<&Config> for SerializableConfig {
             source_maps: internal.source_maps.clone(),
             module: internal.module.clone(),
             minify: internal.minify,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SerializableOptions {
+    #[serde(flatten)]
+    pub config: SerializableConfig,
+    #[serde(default)]
+    pub source_maps: Option<SourceMapsConfig>,
+}
+
+impl From<&Options> for SerializableOptions {
+    fn from(internal: &Options) -> Self {
+        SerializableOptions {
+            config: SerializableConfig::from(&internal.config),
+            source_maps: internal.source_maps.clone(),
         }
     }
 }
@@ -199,14 +217,12 @@ pub fn convert(
     ts_config: &TsConfigJson,
     minify_output: Option<bool>,
     enable_experimental_swc_declarations: Option<bool>,
-) -> swc::config::Config {
+) -> swc::config::Options {
     let base_url = determine_base_url(ts_config.clone().compilerOptions.baseUrl);
     let paths = determine_paths(&base_url, ts_config.clone().compilerOptions.paths);
     let inline_sources = ts_config.compilerOptions.inlineSources.unwrap_or(false);
 
-    swc::config::Config {
-        minify: BoolConfig::from(minify_output),
-        module: convert_module(&ts_config.compilerOptions.module),
+    swc::config::Options {
         source_maps: if inline_sources {
             Some(swc::config::SourceMapsConfig::Str(String::from("inline")))
         } else {
@@ -214,36 +230,48 @@ pub fn convert(
                 ts_config.compilerOptions.sourceMap.unwrap_or(false),
             ))
         },
-        jsc: JscConfig {
-            base_url,
-            paths,
-            transform: Some(swc::config::TransformConfig {
-                legacy_decorator: BoolConfig::new(Some(false)),
-                decorator_metadata: BoolConfig::new(Some(
-                    ts_config
+        config: swc::config::Config {
+            minify: BoolConfig::from(minify_output),
+            module: convert_module(&ts_config.compilerOptions.module),
+            source_maps: if inline_sources {
+                Some(swc::config::SourceMapsConfig::Str(String::from("inline")))
+            } else {
+                Some(swc::config::SourceMapsConfig::Bool(
+                    ts_config.compilerOptions.sourceMap.unwrap_or(false),
+                ))
+            },
+            jsc: JscConfig {
+                base_url,
+                paths,
+                transform: Some(swc::config::TransformConfig {
+                    legacy_decorator: BoolConfig::new(Some(false)),
+                    decorator_metadata: BoolConfig::new(Some(
+                        ts_config
+                            .compilerOptions
+                            .experimentalDecorators
+                            .unwrap_or_default(),
+                    )),
+                    ..Default::default()
+                })
+                .into(),
+                preserve_all_comments: if ts_config.compilerOptions.removeComments.is_some() {
+                    BoolConfig::new(Some(!ts_config.compilerOptions.removeComments.unwrap()))
+                } else {
+                    BoolConfig::new(Some(true))
+                },
+                keep_class_names: BoolConfig::new(Some(true)),
+                target: convert_target_to_es_version(&ts_config.compilerOptions.target),
+                syntax: Some(Syntax::Typescript(TsConfig {
+                    dts: enable_experimental_swc_declarations.unwrap_or(false)
+                        && ts_config.compilerOptions.declaration.unwrap_or_default(),
+                    decorators: ts_config
                         .compilerOptions
                         .experimentalDecorators
                         .unwrap_or_default(),
-                )),
+                    ..Default::default()
+                })),
                 ..Default::default()
-            })
-            .into(),
-            preserve_all_comments: if ts_config.compilerOptions.removeComments.is_some() {
-                BoolConfig::new(Some(!ts_config.compilerOptions.removeComments.unwrap()))
-            } else {
-                BoolConfig::new(Some(true))
             },
-            keep_class_names: BoolConfig::new(Some(true)),
-            target: convert_target_to_es_version(&ts_config.compilerOptions.target),
-            syntax: Some(Syntax::Typescript(TsConfig {
-                dts: enable_experimental_swc_declarations.unwrap_or(false)
-                    && ts_config.compilerOptions.declaration.unwrap_or_default(),
-                decorators: ts_config
-                    .compilerOptions
-                    .experimentalDecorators
-                    .unwrap_or_default(),
-                ..Default::default()
-            })),
             ..Default::default()
         },
         ..Default::default()
