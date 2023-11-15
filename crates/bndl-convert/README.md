@@ -8,7 +8,7 @@ Internal conversion crate to transform a `tsconfig.json` into an SWC compatible 
 
 ```bash
 $ cargo install bndl_convert # or npm install -g bndl-convert
-$ bndl_convert --minify ./tsconfig.json
+$ bndl-convert --minify ./tsconfig.json
 ```
 
 ### Crate

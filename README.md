@@ -34,7 +34,7 @@ But, if you don't want to deal with the overhead and want to keep your transitio
 ## Usage
 
 ```bash
-$ cargo install bndl-cli # or npm install -g bndl-cli
+$ cargo install bndl_cli # or npm install -g bndl-cli
 $ bndl --clean --outDir dist --project tsconfig.json --minify
 ```
 
