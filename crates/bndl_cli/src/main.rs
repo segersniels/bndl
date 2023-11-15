@@ -1,4 +1,7 @@
-use clap::{ArgAction, ArgMatches, Command};
+use std::path::Path;
+
+use bndl_convert::fetch_tsconfig;
+use clap::{ArgAction, Command};
 use human_panic::setup_panic;
 
 mod utils;
@@ -44,45 +47,47 @@ fn cli() -> Command {
         )
 }
 
-/// Determines the variables to use for the bundling process based
-/// on the command line arguments provided
-fn determine_variables(matches: &ArgMatches) -> (String, String) {
-    let default_config = String::from("tsconfig.json");
-    let config_path = matches
-        .get_one::<String>("project")
-        .unwrap_or(&default_config);
-
-    let default_out_dir = String::from("dist");
-    let out_dir = matches
-        .get_one::<String>("outDir")
-        .unwrap_or(&default_out_dir);
-
-    (config_path.to_owned(), out_dir.to_owned())
-}
-
 fn main() {
     env_logger::init();
     setup_panic!();
 
     let matches = cli().get_matches();
-    let (config_path, out_dir) = determine_variables(&matches);
+    let default_config = String::from("tsconfig.json");
+    let config_path = matches
+        .get_one::<String>("project")
+        .unwrap_or(&default_config);
 
-    // Clean the output directory if the flag is set
-    if matches.get_flag("clean") {
-        utils::compile::clean_out_dir(&out_dir);
-    }
-
-    // Transpile the code to javascript
     let minify_output = matches.get_flag("minify");
-    let filename = match matches.subcommand() {
-        Some((query, _)) => query,
-        _ => ".",
+    let input_path = match matches.subcommand() {
+        Some((query, _)) => Path::new(query),
+        _ => Path::new("."),
     };
 
-    utils::compile::transpile(filename, &out_dir, &config_path, minify_output);
+    let result = fetch_tsconfig(config_path);
+    match result {
+        Ok(ts_config) => {
+            let ts_config_out_dir = ts_config.clone().compilerOptions.outDir.unwrap_or_default();
+            let out_path = Path::new(
+                matches
+                    .get_one::<String>("outDir")
+                    .unwrap_or(&ts_config_out_dir),
+            );
 
-    // Bundle the monorepo dependencies if the flag is set
-    if matches.get_flag("bundle") {
-        utils::bundle::bundle(&out_dir);
+            // Clean the output directory if the flag is set
+            if matches.get_flag("clean") {
+                utils::compile::clean_out_dir(out_path);
+            }
+
+            // Transpile the code to javascript
+            utils::compile::transpile(input_path, out_path, &ts_config, config_path, minify_output);
+
+            // Bundle the monorepo dependencies if the flag is set
+            if matches.get_flag("bundle") {
+                utils::bundle::bundle(out_path);
+            }
+        }
+        Err(e) => {
+            eprintln!("{}", e)
+        }
     }
 }

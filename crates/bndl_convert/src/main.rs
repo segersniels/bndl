@@ -26,7 +26,7 @@ fn main() {
         _ => "tsconfig.json",
     };
 
-    match fetch_tsconfig(&filename) {
+    match fetch_tsconfig(filename) {
         Ok(tsconfig) => {
             let config = bndl_convert::convert(&tsconfig, Some(minify_output), None);
             println!(

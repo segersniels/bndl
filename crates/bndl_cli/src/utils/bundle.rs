@@ -67,7 +67,7 @@ fn fetch_internal_packages(root: &Path) -> HashMap<String, PathBuf> {
             continue;
         }
 
-        let package_json = fetch_package_json(&path);
+        let package_json = fetch_package_json(path);
         packages.insert(package_json.name, path.parent().unwrap().to_owned());
     }
 
@@ -90,7 +90,7 @@ fn determine_internal_dependencies(
         .collect()
 }
 
-pub fn bundle(out_dir: &str) {
+pub fn bundle(out_path: &Path) {
     let package_json_path = Path::new("package.json");
     let app_dir = package_json_path.parent().unwrap();
     let package_json = fetch_package_json(package_json_path);
@@ -101,8 +101,8 @@ pub fn bundle(out_dir: &str) {
     debug!("Used internal dependencies: {:?}", dependencies);
 
     for (name, path) in dependencies.iter() {
-        let compiled_dependency_path = Path::new(path).join(out_dir);
-        let destination = app_dir.join(out_dir).join("node_modules").join(name);
+        let compiled_dependency_path = Path::new(path).join(out_path);
+        let destination = app_dir.join(out_path).join("node_modules").join(name);
 
         // Check if we have to copy over the compiled dependency or the source code directly
         let source = if compiled_dependency_path.exists() {

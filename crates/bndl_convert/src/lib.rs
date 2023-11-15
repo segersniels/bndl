@@ -6,7 +6,7 @@ use swc::{
     config::{JscConfig, Paths},
     BoolConfig,
 };
-use swc_ecma_ast;
+
 use swc_ecma_parser::{Syntax, TsConfig};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -19,6 +19,9 @@ pub struct CompilerOptions {
     pub baseUrl: Option<String>,
     pub paths: Option<Paths>,
     pub inlineSources: Option<bool>,
+    pub declarationDir: Option<String>,
+    pub outDir: Option<String>,
+    pub removeComments: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -47,7 +50,7 @@ impl From<&Config> for SerializableConfig {
             jsc: internal.jsc.clone(),
             source_maps: internal.source_maps.clone(),
             module: internal.module.clone(),
-            minify: internal.minify.clone(),
+            minify: internal.minify,
         }
     }
 }
@@ -62,6 +65,12 @@ fn merge_compiler_options(base: &CompilerOptions, child: &CompilerOptions) -> Co
         baseUrl: child.baseUrl.clone().or_else(|| base.baseUrl.clone()),
         paths: child.paths.clone().or_else(|| base.paths.clone()),
         inlineSources: child.inlineSources.or(base.inlineSources),
+        declarationDir: child
+            .declarationDir
+            .clone()
+            .or_else(|| base.declarationDir.clone()),
+        outDir: child.outDir.clone().or_else(|| base.outDir.clone()),
+        removeComments: child.removeComments.or(base.removeComments),
     }
 }
 
@@ -219,7 +228,11 @@ pub fn convert(
                 ..Default::default()
             })
             .into(),
-            preserve_all_comments: BoolConfig::new(Some(false)),
+            preserve_all_comments: if ts_config.compilerOptions.removeComments.is_some() {
+                BoolConfig::new(Some(!ts_config.compilerOptions.removeComments.unwrap()))
+            } else {
+                BoolConfig::new(Some(true))
+            },
             keep_class_names: BoolConfig::new(Some(true)),
             target: convert_target_to_es_version(&ts_config.compilerOptions.target),
             syntax: Some(Syntax::Typescript(TsConfig {
