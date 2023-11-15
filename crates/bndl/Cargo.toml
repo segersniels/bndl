@@ -17,7 +17,7 @@ name = "bndl_cli"
 filename = "bndl"
 
 [dependencies]
-bndl_convert = { version = "1.0.1", path = "../bndl-convert" }
+bndl_convert = { version = "1.0.2", path = "../bndl-convert" }
 clap = "4.4.8"
 env_logger = "0.10.1"
 globset = "0.4.13"
