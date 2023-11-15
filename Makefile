@@ -18,4 +18,7 @@ lint-fix:
 	cargo fmt
 
 version:
-	@cargo pkgid | sed 's/.*[@#]\(.*\)/\1/'
+	@cargo pkgid | sed 's/.*[#@]\(.*\)/\1/'
+
+name:
+	@cargo pkgid | sed 's/.*#\(.*\)@.*/\1/'
