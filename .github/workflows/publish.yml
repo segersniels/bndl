@@ -87,11 +87,10 @@ jobs:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           automatic_release_tag: "${{ steps.current_version.outputs.version }}"
           prerelease: false
-          working-directory: crates/${{ inputs.crate }}
           files: |
-            ./bin/${{ inputs.crate }}-macos
-            ./bin/${{ inputs.crate }}-aarch64-linux
-            ./bin/${{ inputs.crate }}-amd64-linux
+            ./crates/${{ inputs.crate }}/bin/${{ inputs.crate }}-macos
+            ./crates/${{ inputs.crate }}/bin/${{ inputs.crate }}-aarch64-linux
+            ./crates/${{ inputs.crate }}/bin/${{ inputs.crate }}-amd64-linux
 
   cargo:
     needs: release
