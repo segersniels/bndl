@@ -31,8 +31,8 @@ pub struct TsConfigJson {
     pub exclude: Option<Vec<String>>,
 }
 
-// Define your own wrapper struct that derives Serialize
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SerializableConfig {
     #[serde(default)]
     pub jsc: JscConfig,
