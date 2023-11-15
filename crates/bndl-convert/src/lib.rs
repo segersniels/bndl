@@ -218,7 +218,7 @@ pub fn convert(
             base_url,
             paths,
             transform: Some(swc::config::TransformConfig {
-                legacy_decorator: BoolConfig::new(Some(true)),
+                legacy_decorator: BoolConfig::new(Some(false)),
                 decorator_metadata: BoolConfig::new(Some(
                     ts_config
                         .compilerOptions
