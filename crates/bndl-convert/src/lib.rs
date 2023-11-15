@@ -55,6 +55,10 @@ impl From<&Config> for SerializableConfig {
     }
 }
 
+const fn default_swcrc() -> bool {
+    true
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SerializableOptions {
@@ -64,6 +68,10 @@ pub struct SerializableOptions {
     pub source_maps: Option<SourceMapsConfig>,
     #[serde(default)]
     pub output_path: Option<PathBuf>,
+    #[serde(default = "default_swcrc")]
+    pub swcrc: bool,
+    #[serde(default)]
+    pub filename: String,
 }
 
 impl From<&Options> for SerializableOptions {
@@ -72,6 +80,8 @@ impl From<&Options> for SerializableOptions {
             config: SerializableConfig::from(&internal.config),
             source_maps: internal.source_maps.clone(),
             output_path: internal.output_path.clone(),
+            swcrc: internal.swcrc,
+            filename: internal.filename.clone(),
         }
     }
 }
