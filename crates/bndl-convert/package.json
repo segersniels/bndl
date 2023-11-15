@@ -1,5 +1,5 @@
 {
-  "name": "@bndl/convert",
+  "name": "bndl-convert",
   "version": "1.0.0",
   "description": "Convert a tsconfig.json to an SWC compatible config",
   "files": [
@@ -7,10 +7,10 @@
     "scripts/preinstall.sh"
   ],
   "bin": {
-    "bndl_convert": "./bin/bndl_convert"
+    "bndl-convert": "./bin/bndl-convert"
   },
   "scripts": {
-    "preinstall": "PREINSTALL_BINARY=bndl_convert ./scripts/preinstall.sh"
+    "preinstall": "PREINSTALL_BINARY=bndl-convert ./scripts/preinstall.sh"
   },
   "author": "Niels Segers",
   "license": "ISC",

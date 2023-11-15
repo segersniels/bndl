@@ -6,8 +6,8 @@ on:
         required: true
         type: choice
         options:
-          - bndl_cli
-          - bndl_convert
+          - bndl
+          - bndl-convert
 
 concurrency:
   group: publish-${{ inputs.crate }}-${{ github.ref }}
