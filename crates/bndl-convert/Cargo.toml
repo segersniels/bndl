@@ -2,7 +2,7 @@ cargo-features = ["different-binary-name"]
 
 [package]
 name = "bndl_convert"
-version = "1.0.0"
+version = "1.0.1"
 description = "Convert a tsconfig.json to an SWC compatible config"
 authors = ["Niels Segers <contact@niels.foo>"]
 edition = "2021"

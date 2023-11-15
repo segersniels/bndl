@@ -2,7 +2,7 @@ cargo-features = ["different-binary-name"]
 
 [package]
 name = "bndl_cli"
-version = "1.0.0"
+version = "1.0.1"
 description = "A basic TypeScript transpiling and bundling tool for (primarily backend) monorepos"
 authors = ["Niels Segers <contact@niels.foo>"]
 edition = "2021"
@@ -17,7 +17,7 @@ name = "bndl_cli"
 filename = "bndl"
 
 [dependencies]
-bndl_convert = { version = "1.0.0", path = "../bndl-convert" }
+bndl_convert = { version = "1.0.1", path = "../bndl-convert" }
 clap = "4.4.8"
 env_logger = "0.10.1"
 globset = "0.4.13"
