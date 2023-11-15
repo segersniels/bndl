@@ -1,6 +1,7 @@
 use bndl_convert::{convert, TsConfigJson};
 use globset::{Glob, GlobSet, GlobSetBuilder};
-use std::{fs, process};
+use log::debug;
+use std::{env, fs, process};
 use std::{path::Path, sync::Arc};
 use swc::{self, config::Options};
 use swc_common::{SourceMap, GLOBALS};
@@ -8,8 +9,13 @@ use walkdir::WalkDir;
 
 /// Removes the output directory if it exists
 pub fn clean_out_dir(out_path: &Path) {
-    if out_path.exists() {
-        fs::remove_dir_all(out_path).expect("Failed to remove directory");
+    let dir_to_delete = env::current_dir()
+        .unwrap_or(Path::new(".").to_path_buf())
+        .join(out_path);
+
+    if dir_to_delete.exists() {
+        debug!("Cleaning output directory: {:?}", dir_to_delete);
+        fs::remove_dir_all(dir_to_delete).expect("Failed to remove directory");
     }
 }
 
