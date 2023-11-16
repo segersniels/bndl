@@ -27,7 +27,7 @@ pub struct CompilerOptions {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TsConfigJson {
     pub extends: Option<String>,
-    pub compilerOptions: CompilerOptions,
+    pub compilerOptions: Option<CompilerOptions>,
     pub exclude: Option<Vec<String>>,
 }
 
@@ -83,22 +83,57 @@ impl From<&Options> for SerializableOptions {
     }
 }
 
-fn merge_compiler_options(base: &CompilerOptions, child: &CompilerOptions) -> CompilerOptions {
-    CompilerOptions {
-        module: child.module.clone().or_else(|| base.module.clone()),
-        declaration: child.declaration.or(base.declaration),
-        experimentalDecorators: child.experimentalDecorators.or(base.experimentalDecorators),
-        target: child.target.clone().or_else(|| base.target.clone()),
-        sourceMap: child.sourceMap.or(base.sourceMap),
-        baseUrl: child.baseUrl.clone().or_else(|| base.baseUrl.clone()),
-        paths: child.paths.clone().or_else(|| base.paths.clone()),
-        inlineSources: child.inlineSources.or(base.inlineSources),
-        declarationDir: child
-            .declarationDir
-            .clone()
-            .or_else(|| base.declarationDir.clone()),
-        outDir: child.outDir.clone().or_else(|| base.outDir.clone()),
-        removeComments: child.removeComments.or(base.removeComments),
+fn merge_compiler_options(
+    base: &Option<CompilerOptions>,
+    child: &Option<CompilerOptions>,
+) -> Option<CompilerOptions> {
+    if child.is_none() {
+        return base.clone();
+    }
+
+    if let Some(base_options) = base {
+        if let Some(child_options) = child {
+            // If both base and child are valid configs, merge them together
+            Some(CompilerOptions {
+                module: child_options
+                    .module
+                    .clone()
+                    .or_else(|| base_options.module.clone()),
+                declaration: child_options.declaration.or(base_options.declaration),
+                experimentalDecorators: child_options
+                    .experimentalDecorators
+                    .or(base_options.experimentalDecorators),
+                target: child_options
+                    .target
+                    .clone()
+                    .or_else(|| base_options.target.clone()),
+                sourceMap: child_options.sourceMap.or(base_options.sourceMap),
+                baseUrl: child_options
+                    .baseUrl
+                    .clone()
+                    .or_else(|| base_options.baseUrl.clone()),
+                paths: child_options
+                    .paths
+                    .clone()
+                    .or_else(|| base_options.paths.clone()),
+                inlineSources: child_options.inlineSources.or(base_options.inlineSources),
+                declarationDir: child_options
+                    .declarationDir
+                    .clone()
+                    .or_else(|| base_options.declarationDir.clone()),
+                outDir: child_options
+                    .outDir
+                    .clone()
+                    .or_else(|| base_options.outDir.clone()),
+                removeComments: child_options.removeComments.or(base_options.removeComments),
+            })
+        } else {
+            // Child is not a valid config, return the base and don't bother merging
+            base.clone()
+        }
+    } else {
+        // Base is not a valid config, don't bother merging
+        child.clone()
     }
 }
 
@@ -141,13 +176,16 @@ fn load_and_merge_tsconfig(config_path: &Path) -> serde_json::Result<TsConfigJso
 ///     }
 /// }
 /// ```
-pub fn fetch_tsconfig(config_path: &str) -> serde_json::Result<TsConfigJson> {
-    let tsconfig = load_and_merge_tsconfig(Path::new(config_path));
+pub fn fetch_tsconfig(config_path: &str) -> Result<TsConfigJson, String> {
+    let path = Path::new(config_path);
+    if !path.exists() {
+        return Err(format!("Unable to find {}", config_path));
+    }
 
-    tsconfig.map_err(|e| {
-        eprintln!("Error parsing tsconfig.json: {}", e);
-        e
-    })
+    match load_and_merge_tsconfig(path) {
+        Ok(tsconfig) => Ok(tsconfig),
+        Err(e) => Err(format!("Error parsing tsconfig.json: {}", e)),
+    }
 }
 
 fn convert_target_to_es_version(target: &Option<String>) -> Option<swc_ecma_ast::EsVersion> {
@@ -228,69 +266,74 @@ pub fn convert(
     minify_output: Option<bool>,
     enable_experimental_swc_declarations: Option<bool>,
 ) -> swc::config::Options {
-    let base_url = determine_base_url(ts_config.clone().compilerOptions.baseUrl);
-    let paths = determine_paths(&base_url, ts_config.clone().compilerOptions.paths);
-    let inline_sources = ts_config.compilerOptions.inlineSources.unwrap_or(false);
-    let out_dir = ts_config.clone().compilerOptions.outDir.unwrap_or_default();
+    if let Some(compiler_options) = ts_config.compilerOptions.clone() {
+        let base_url = determine_base_url(compiler_options.baseUrl);
+        let paths = determine_paths(&base_url, compiler_options.paths);
+        let inline_sources = compiler_options.inlineSources.unwrap_or(false);
+        let out_dir = compiler_options.outDir.unwrap_or_default();
 
-    swc::config::Options {
-        output_path: if out_dir.is_empty() {
-            None
-        } else {
-            Some(Path::new(&out_dir).to_path_buf())
-        },
-        source_maps: if inline_sources {
-            Some(swc::config::SourceMapsConfig::Str(String::from("inline")))
-        } else {
-            Some(swc::config::SourceMapsConfig::Bool(
-                ts_config.compilerOptions.sourceMap.unwrap_or(false),
-            ))
-        },
-        config: swc::config::Config {
-            minify: BoolConfig::from(minify_output),
-            module: convert_module(&ts_config.compilerOptions.module),
-            inline_sources_content: BoolConfig::from(false),
+        swc::config::Options {
+            output_path: if out_dir.is_empty() {
+                None
+            } else {
+                Some(Path::new(&out_dir).to_path_buf())
+            },
             source_maps: if inline_sources {
                 Some(swc::config::SourceMapsConfig::Str(String::from("inline")))
             } else {
                 Some(swc::config::SourceMapsConfig::Bool(
-                    ts_config.compilerOptions.sourceMap.unwrap_or(false),
+                    compiler_options.sourceMap.unwrap_or(false),
                 ))
             },
-            jsc: JscConfig {
-                base_url,
-                paths,
-                transform: Some(swc::config::TransformConfig {
-                    legacy_decorator: BoolConfig::new(Some(false)),
-                    decorator_metadata: BoolConfig::new(Some(
-                        ts_config
-                            .compilerOptions
-                            .experimentalDecorators
-                            .unwrap_or_default(),
-                    )),
-                    ..Default::default()
-                })
-                .into(),
-                preserve_all_comments: if ts_config.compilerOptions.removeComments.is_some() {
-                    BoolConfig::new(Some(!ts_config.compilerOptions.removeComments.unwrap()))
+            config: swc::config::Config {
+                minify: BoolConfig::from(minify_output),
+                module: convert_module(&compiler_options.module),
+                inline_sources_content: BoolConfig::from(false),
+                source_maps: if inline_sources {
+                    Some(swc::config::SourceMapsConfig::Str(String::from("inline")))
                 } else {
-                    BoolConfig::new(Some(true))
+                    Some(swc::config::SourceMapsConfig::Bool(
+                        compiler_options.sourceMap.unwrap_or(false),
+                    ))
                 },
-                keep_class_names: BoolConfig::new(Some(true)),
-                target: convert_target_to_es_version(&ts_config.compilerOptions.target),
-                syntax: Some(Syntax::Typescript(TsConfig {
-                    dts: enable_experimental_swc_declarations.unwrap_or(false)
-                        && ts_config.compilerOptions.declaration.unwrap_or_default(),
-                    decorators: ts_config
-                        .compilerOptions
-                        .experimentalDecorators
-                        .unwrap_or_default(),
+                jsc: JscConfig {
+                    base_url,
+                    paths,
+                    transform: Some(swc::config::TransformConfig {
+                        legacy_decorator: BoolConfig::new(Some(false)),
+                        decorator_metadata: BoolConfig::new(Some(
+                            compiler_options.experimentalDecorators.unwrap_or_default(),
+                        )),
+                        ..Default::default()
+                    })
+                    .into(),
+                    preserve_all_comments: if compiler_options.removeComments.is_some() {
+                        BoolConfig::new(Some(!compiler_options.removeComments.unwrap()))
+                    } else {
+                        BoolConfig::new(Some(true))
+                    },
+                    keep_class_names: BoolConfig::new(Some(true)),
+                    target: convert_target_to_es_version(&compiler_options.target),
+                    syntax: Some(Syntax::Typescript(TsConfig {
+                        dts: enable_experimental_swc_declarations.unwrap_or(false)
+                            && compiler_options.declaration.unwrap_or_default(),
+                        decorators: compiler_options.experimentalDecorators.unwrap_or_default(),
+                        ..Default::default()
+                    })),
                     ..Default::default()
-                })),
+                },
                 ..Default::default()
             },
             ..Default::default()
-        },
-        ..Default::default()
+        }
+    } else {
+        return swc::config::Options {
+            config: swc::config::Config {
+                minify: BoolConfig::from(minify_output),
+                inline_sources_content: BoolConfig::from(false),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
     }
 }

@@ -65,7 +65,13 @@ fn main() {
     let result = fetch_tsconfig(config_path);
     match result {
         Ok(ts_config) => {
-            let ts_config_out_dir = ts_config.clone().compilerOptions.outDir.unwrap_or_default();
+            let ts_config_out_dir =
+                if let Some(compiler_options) = ts_config.clone().compilerOptions {
+                    compiler_options.outDir.unwrap_or_default()
+                } else {
+                    String::from("dist")
+                };
+
             let out_path = Path::new(
                 matches
                     .get_one::<String>("outDir")

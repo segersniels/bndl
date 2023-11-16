@@ -204,14 +204,16 @@ pub fn transpile(
     }
 
     // Rely on `tsc` to provide .d.ts files since SWC's implementation is a bit weird
-    if ts_config.compilerOptions.declaration.unwrap_or_default() {
-        // Give preference to specified declaration directory in tsconfig
-        let declaration_dir = if ts_config.compilerOptions.declarationDir.is_some() {
-            Path::new(ts_config.compilerOptions.declarationDir.as_ref().unwrap())
-        } else {
-            output_path.as_path()
-        };
+    if let Some(compiler_options) = ts_config.clone().compilerOptions {
+        if compiler_options.declaration.unwrap_or_default() {
+            // Give preference to specified declaration directory in tsconfig
+            let declaration_dir = if compiler_options.declarationDir.is_some() {
+                Path::new(compiler_options.declarationDir.as_ref().unwrap())
+            } else {
+                output_path.as_path()
+            };
 
-        create_tsc_dts(config_path, declaration_dir);
+            create_tsc_dts(config_path, declaration_dir);
+        }
     }
 }
