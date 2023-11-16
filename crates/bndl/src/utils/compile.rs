@@ -1,4 +1,4 @@
-use bndl_convert::{convert, TsConfigJson};
+use bndl_convert::{convert, SerializableOptions, TsConfigJson};
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use log::debug;
 use std::{env, fs, process};
@@ -39,23 +39,39 @@ fn create_tsc_dts(project: &str, out_path: &Path) -> std::process::Output {
         .expect("Failed to execute command")
 }
 
-fn write_transpiled_to_file(path: &Path, code: &str, desired_extension: &str) {
-    let output_path = Path::new(path).with_extension(desired_extension);
-
-    if let Some(p) = output_path.parent() {
-        fs::create_dir_all(p).expect("Failed to create directory");
-    };
-
-    fs::write(&output_path, code.as_bytes()).expect("Failed to write to file")
-}
-
 fn check_to_ignore_file(filename: &Path, glob_set: &GlobSet) -> bool {
     glob_set.is_match(filename)
 }
 
+/// Ensures that the source map has the correct source file name and source root
+fn extend_source_map(
+    source_map: String,
+    source_file_name: &Option<String>,
+    source_root: &Option<String>,
+) -> Vec<u8> {
+    let mut source_map = swc::sourcemap::SourceMap::from_reader(source_map.as_bytes())
+        .expect("failed to encode source map");
+
+    if !source_map.get_token_count() != 0 {
+        if let Some(ref source_file_name) = source_file_name {
+            source_map.set_source(0u32, source_file_name);
+        }
+    }
+
+    if source_root.is_some() {
+        source_map.set_source_root(source_root.clone());
+    }
+
+    let mut buf = vec![];
+    source_map
+        .to_writer(&mut buf)
+        .expect("failed to decode source map");
+
+    return buf;
+}
+
 fn compile_file(
     input_path: &Path,
-    out_path: &Path,
     compiler: &swc::Compiler,
     options: &Options,
     glob_set: &GlobSet,
@@ -66,27 +82,55 @@ fn compile_file(
         return;
     }
 
-    let cm = Arc::<SourceMap>::default();
-    let output_path = out_path.join(input_path);
-    let output = GLOBALS.set(&Default::default(), || {
-        swc::try_with_handler(cm.clone(), Default::default(), |handler| {
-            let fm = cm
-                .load_file(Path::new(input_path))
+    let transform_output = GLOBALS.set(&Default::default(), || {
+        swc::try_with_handler(compiler.cm.clone(), Default::default(), |handler| {
+            let fm: Arc<swc_common::SourceFile> = compiler
+                .cm
+                .load_file(input_path)
                 .expect("failed to load file");
 
-            compiler.process_js_file(fm, handler, options)
+            compiler.process_js_file(fm, handler, &options)
         })
     });
 
-    match output {
-        Ok(output) => {
-            if !output.code.is_empty() {
-                write_transpiled_to_file(&output_path, &output.code, "js");
+    match transform_output {
+        Ok(mut output) => {
+            let output_path = options.output_path.as_ref().unwrap();
+            let source_file_name = &options.source_file_name;
+            let source_root = &options.source_root;
+
+            // Extend the source map so it actually has content
+            let source_map = if let Some(ref source_map) = &output.map {
+                Some(extend_source_map(
+                    source_map.to_owned(),
+                    source_file_name,
+                    source_root,
+                ))
+            } else {
+                None
+            };
+
+            if output.code.is_empty() {
+                return;
             }
 
-            if output.map.is_some() {
-                write_transpiled_to_file(&output_path, &output.map.unwrap(), "js.map");
+            let output_file_path = output_path.join(input_path).with_extension("js");
+            if let Some(p) = output_file_path.parent() {
+                fs::create_dir_all(p).expect("Failed to create directory");
+            };
+
+            if let Some(ref source_map) = source_map {
+                let source_map_path = output_file_path.with_extension("js.map");
+
+                output.code.push_str("\n//# sourceMappingURL=");
+                output
+                    .code
+                    .push_str(&source_map_path.file_name().unwrap().to_string_lossy());
+
+                fs::write(source_map_path, source_map).expect("Failed to write to file");
             }
+
+            fs::write(output_file_path, &output.code).expect("Failed to write to file");
         }
         Err(e) => {
             eprintln!("{}", e);
@@ -97,7 +141,6 @@ fn compile_file(
 
 fn compile_directory(
     input_path: &Path,
-    out_path: &Path,
     compiler: &swc::Compiler,
     options: &Options,
     glob_set: &GlobSet,
@@ -109,7 +152,7 @@ fn compile_directory(
                 .extension()
                 .map_or(false, |ext| ext == "ts" || ext == "tsx" || ext == "js"))
         {
-            compile_file(path, Path::new(out_path), compiler, options, glob_set);
+            compile_file(path, compiler, options, glob_set);
         }
     }
 }
@@ -122,10 +165,22 @@ pub fn transpile(
     minify_output: bool,
 ) {
     input_path = Path::new(input_path.to_str().unwrap().trim_start_matches("./"));
+    let output_path = env::current_dir()
+        .unwrap_or(Path::new(".").to_path_buf())
+        .join(out_path);
 
     let cm = Arc::<SourceMap>::default();
-    let compiler = swc::Compiler::new(cm.clone());
-    let options = convert(ts_config, Some(minify_output), None);
+    let compiler = swc::Compiler::new(cm);
+    let options = swc::config::Options {
+        output_path: Some(output_path.clone()),
+        swcrc: false,
+        ..convert(ts_config, Some(minify_output), None)
+    };
+
+    debug!(
+        "Options: {}",
+        serde_json::to_string_pretty(&SerializableOptions::from(&options)).unwrap()
+    );
 
     // Build a glob set based on the tsconfig exclude
     let mut builder = GlobSetBuilder::new();
@@ -139,9 +194,9 @@ pub fn transpile(
     let glob_set = builder.build().expect("Failed to build glob set");
 
     if input_path.is_file() {
-        compile_file(input_path, out_path, &compiler, &options, &glob_set);
+        compile_file(input_path, &compiler, &options, &glob_set);
     } else {
-        compile_directory(input_path, out_path, &compiler, &options, &glob_set);
+        compile_directory(input_path, &compiler, &options, &glob_set);
     }
 
     // Rely on `tsc` to provide .d.ts files since SWC's implementation is a bit weird
@@ -150,7 +205,7 @@ pub fn transpile(
         let declaration_dir = if ts_config.compilerOptions.declarationDir.is_some() {
             Path::new(ts_config.compilerOptions.declarationDir.as_ref().unwrap())
         } else {
-            out_path
+            output_path.as_path()
         };
 
         create_tsc_dts(config_path, declaration_dir);
