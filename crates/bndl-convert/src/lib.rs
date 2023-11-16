@@ -249,6 +249,7 @@ pub fn convert(
         config: swc::config::Config {
             minify: BoolConfig::from(minify_output),
             module: convert_module(&ts_config.compilerOptions.module),
+            inline_sources_content: BoolConfig::from(false),
             source_maps: if inline_sources {
                 Some(swc::config::SourceMapsConfig::Str(String::from("inline")))
             } else {
