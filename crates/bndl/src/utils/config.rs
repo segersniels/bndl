@@ -10,6 +10,10 @@ pub struct PackageJson {
 }
 
 pub fn fetch_package_json(path: &Path) -> PackageJson {
+    if !path.exists() {
+        return PackageJson::default();
+    }
+
     let package_json_str = fs::read_to_string(path).expect("Unable to read package.json");
 
     match serde_json::from_str(&package_json_str) {

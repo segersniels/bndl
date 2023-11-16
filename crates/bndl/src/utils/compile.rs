@@ -9,6 +9,10 @@ use walkdir::WalkDir;
 
 /// Removes the output directory if it exists
 pub fn clean_out_dir(out_path: &Path) {
+    if out_path.as_os_str().is_empty() {
+        return;
+    }
+
     let dir_to_delete = env::current_dir()
         .unwrap_or(Path::new(".").to_path_buf())
         .join(out_path);
