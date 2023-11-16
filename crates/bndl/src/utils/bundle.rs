@@ -90,36 +90,31 @@ fn determine_internal_dependencies(
         .collect()
 }
 
-pub fn bundle(out_path: &Path) {
+pub fn bundle(out_path: &Path) -> Result<(), String> {
     let package_json_path = Path::new("package.json");
     let app_dir = package_json_path.parent().unwrap();
     let package_json = fetch_package_json(package_json_path);
 
-    match find_workspace_root() {
-        Ok(root) => {
-            let dependencies = determine_internal_dependencies(&package_json, &root);
+    let root = find_workspace_root()?;
+    let dependencies = determine_internal_dependencies(&package_json, &root);
 
-            debug!("Used internal dependencies: {:?}", dependencies);
+    debug!("Used internal dependencies: {:?}", dependencies);
 
-            for (name, path) in dependencies.iter() {
-                let compiled_dependency_path = Path::new(path).join(out_path);
-                let destination = app_dir.join(out_path).join("node_modules").join(name);
+    for (name, path) in dependencies.iter() {
+        let compiled_dependency_path = Path::new(path).join(out_path);
+        let destination = app_dir.join(out_path).join("node_modules").join(name);
 
-                // Check if we have to copy over the compiled dependency or the source code directly
-                let source = if compiled_dependency_path.exists() {
-                    compiled_dependency_path
-                } else {
-                    path.to_owned()
-                };
+        // Check if we have to copy over the compiled dependency or the source code directly
+        let source = if compiled_dependency_path.exists() {
+            compiled_dependency_path
+        } else {
+            path.to_owned()
+        };
 
-                debug!("Copying {:?} to {:?}", source, destination);
+        debug!("Copying {:?} to {:?}", source, destination);
 
-                copy_dir_all(source, destination).expect("Unable to copy");
-            }
-        }
-        Err(e) => {
-            eprintln!("{}", e);
-            process::exit(1);
-        }
+        copy_dir_all(source, destination).expect("Unable to copy");
     }
+
+    Ok(())
 }

@@ -3,6 +3,7 @@ use std::path::Path;
 use bndl_convert::fetch_tsconfig;
 use clap::{ArgAction, Command};
 use human_panic::setup_panic;
+use log::debug;
 
 mod utils;
 
@@ -88,7 +89,14 @@ fn main() {
 
             // Bundle the monorepo dependencies if the flag is set
             if !matches.get_flag("no-bundle") {
-                utils::bundle::bundle(out_path);
+                match utils::bundle::bundle(out_path) {
+                    Ok(_) => {
+                        debug!("Successfully bundled all dependencies");
+                    }
+                    Err(e) => {
+                        eprintln!("{}", e)
+                    }
+                }
             }
         }
         Err(e) => {
