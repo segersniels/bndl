@@ -70,8 +70,6 @@ pub struct SerializableOptions {
     pub output_path: Option<PathBuf>,
     #[serde(default = "default_swcrc")]
     pub swcrc: bool,
-    #[serde(default)]
-    pub filename: String,
 }
 
 impl From<&Options> for SerializableOptions {
@@ -81,7 +79,6 @@ impl From<&Options> for SerializableOptions {
             source_maps: internal.source_maps.clone(),
             output_path: internal.output_path.clone(),
             swcrc: internal.swcrc,
-            filename: internal.filename.clone(),
         }
     }
 }
