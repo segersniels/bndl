@@ -32,10 +32,9 @@ fn cli() -> Command {
                 .action(ArgAction::SetTrue),
         )
         .arg(
-            clap::Arg::new("bundle")
-                .short('b')
-                .long("bundle")
-                .help("Attempt barebones bundling of the project")
+            clap::Arg::new("no-bundle")
+                .long("no-bundle")
+                .help("Disable automatic bundling of internal  monorepo dependencies")
                 .action(ArgAction::SetTrue),
         )
         .arg(
@@ -82,7 +81,7 @@ fn main() {
             utils::compile::transpile(input_path, out_path, &ts_config, config_path, minify_output);
 
             // Bundle the monorepo dependencies if the flag is set
-            if matches.get_flag("bundle") {
+            if !matches.get_flag("no-bundle") {
                 utils::bundle::bundle(out_path);
             }
         }
