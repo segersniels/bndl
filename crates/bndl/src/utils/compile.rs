@@ -149,8 +149,22 @@ fn compile_directory(
     options: &Options,
     glob_set: &GlobSet,
 ) {
-    for entry in WalkDir::new(input_path).into_iter().filter_map(|e| e.ok()) {
+    let mut it = WalkDir::new(input_path).into_iter();
+
+    loop {
+        let entry = match it.next() {
+            None => break,
+            Some(Err(err)) => panic!("ERROR: {}", err),
+            Some(Ok(entry)) => entry,
+        };
+
         let path = entry.path();
+        if path.is_dir() && check_to_ignore_file(path, glob_set) {
+            debug!("Ignoring directory: {:?}", path);
+            it.skip_current_dir();
+            continue;
+        }
+
         if path.is_file()
             && (path
                 .extension()
@@ -191,7 +205,20 @@ pub fn transpile(
     if ts_config.exclude.is_some() {
         let exclude = ts_config.exclude.as_ref().unwrap();
         for e in exclude {
-            builder.add(Glob::new(e).unwrap());
+            let mut glob = e.to_owned();
+
+            if glob.ends_with("/") {
+                glob = glob[0..glob.len() - 1].to_string();
+            }
+
+            // Absolute paths can't be matched so ensure we hit all references through a general glob
+            if !glob.starts_with("./") && !glob.starts_with("*") {
+                glob = format!("*/{glob}/**");
+            }
+
+            debug!("Adding {glob} to globset");
+
+            builder.add(Glob::new(glob.as_str()).unwrap());
         }
     }
 
