@@ -63,8 +63,7 @@ fn main() {
         _ => Path::new("."),
     };
 
-    let result = fetch_tsconfig(config_path);
-    match result {
+    match fetch_tsconfig(config_path) {
         Ok(ts_config) => {
             let ts_config_out_dir =
                 if let Some(compiler_options) = ts_config.clone().compilerOptions {
@@ -94,7 +93,7 @@ fn main() {
                         debug!("Successfully bundled all dependencies");
                     }
                     Err(e) => {
-                        eprintln!("{}", e)
+                        eprintln!("{}", e);
                     }
                 }
             }
