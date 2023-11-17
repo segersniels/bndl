@@ -24,7 +24,7 @@ bndl_deps = { version = "1.0.0", path = "../bndl-deps" }
 clap = "4.4.8"
 env_logger = "0.10.1"
 log = "0.4.20"
-serde = "1.0.192"
+serde = { version = "1.0.192", features = ["derive"] }
 serde_json = "1.0.108"
 swc = "0.269.47"
 swc_common = { version = "0.33.8", features = ["tty-emitter"] }
