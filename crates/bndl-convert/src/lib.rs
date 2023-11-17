@@ -72,6 +72,8 @@ pub struct SerializableOptions {
     #[serde(default)]
     pub source_maps: Option<SourceMapsConfig>,
     #[serde(default)]
+    pub source_root: Option<String>,
+    #[serde(default)]
     pub output_path: Option<PathBuf>,
     #[serde(default = "default_swcrc")]
     pub swcrc: bool,
@@ -82,6 +84,7 @@ impl From<&Options> for SerializableOptions {
         SerializableOptions {
             config: SerializableConfig::from(&internal.config),
             source_maps: internal.source_maps.clone(),
+            source_root: internal.source_root.clone(),
             output_path: internal.output_path.clone(),
             swcrc: internal.swcrc,
         }
