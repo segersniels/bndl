@@ -96,7 +96,7 @@ jobs:
         if: steps.check_tag.outputs.exists == 'false' && inputs.crate == 'bndl'
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "${{ steps.current_version.outputs.version }}"
+          automatic_release_tag: "${{ needs.lint.outputs.current_version }}"
           prerelease: false
           files: |
             ./crates/${{ inputs.crate }}/bin/${{ inputs.crate }}-macos
