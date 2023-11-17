@@ -3,7 +3,7 @@
 Introducing `bndl`, a basic TypeScript transpiling and bundling tool for (primarily backend) monorepos. It uses [SWC](https://swc.rs/) under the hood so it benefits from the speed improvements that it brings over `tsc`.
 
 <p align="center">
-<img src="../../resources/bndl.png" width="250">
+<img src="https://github.com/segersniels/bndl/blob/master/resources/bndl.png?raw=true" width="250">
 
 It aims to be a near drop in replacement for people already accustomed to `tsc` and uses the `tsconfig.json` already present in your project. `bndl` goes through the monorepo, builds the current app (or package) with `swc`, identifies which dependencies are used by the consumer and copies them over to the compiled directory `node_modules` of said consumer.
 
