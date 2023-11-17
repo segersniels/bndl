@@ -1,5 +1,9 @@
 # bndl
 
+[![crates.io](https://img.shields.io/crates/v/bndl_cli.svg)](https://crates.io/crates/bndl_cli)
+[![npm](https://img.shields.io/npm/v/bndl-cli)](https://www.npmjs.com/package/bndl-cli)
+![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/segersniels/bndl/bin.yml)
+
 Introducing `bndl`, a basic TypeScript transpiling and bundling tool for (primarily backend) monorepos. It uses [SWC](https://swc.rs/) under the hood so it benefits from the speed improvements that it brings over `tsc`.
 
 <p align="center">
