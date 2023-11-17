@@ -1,8 +1,7 @@
-use std::{env, process};
-
 use bndl_convert::{fetch_tsconfig, SerializableOptions};
 use clap::{ArgAction, Command};
 use serde_json::Value;
+use std::{env, process};
 use swc::config::Options;
 
 fn cli() -> Command {
@@ -78,6 +77,8 @@ fn parse_options_before_logging(options: &Options) -> Value {
 }
 
 fn main() {
+    env_logger::init();
+
     let matches = cli().get_matches();
     let minify_output = matches.get_flag("minify");
     let filename = match matches.subcommand() {

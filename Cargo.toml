@@ -3,6 +3,7 @@ resolver = "2"
 members = [
   "crates/bndl",
   "crates/bndl-convert",
+  "crates/bndl-deps",
 ]
 
 [profile.release]

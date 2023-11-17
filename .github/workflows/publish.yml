@@ -8,6 +8,7 @@ on:
         options:
           - bndl
           - bndl-convert
+          - bndl-deps
 
 concurrency:
   group: publish-${{ inputs.crate }}-${{ github.ref }}
@@ -120,7 +121,7 @@ jobs:
     needs: [release, cargo]
     environment: production
     runs-on: ubuntu-latest
-    if: needs.release.outputs.tag_exists == 'false'
+    if: needs.release.outputs.tag_exists == 'false' && inputs.crate != 'bndl-deps'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v3

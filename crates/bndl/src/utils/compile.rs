@@ -43,7 +43,7 @@ fn create_tsc_dts(project: &str, out_path: &Path) -> std::process::Output {
         .expect("Failed to execute command")
 }
 
-fn check_to_ignore_file(filename: &Path, glob_set: &GlobSet) -> bool {
+fn check_to_ignore(filename: &Path, glob_set: &GlobSet) -> bool {
     glob_set.is_match(filename)
 }
 
@@ -81,8 +81,8 @@ fn compile_file(
     glob_set: &GlobSet,
 ) {
     // Check if we should ignore the file based on the tsconfig exclude
-    // We need to do this because the swc `exclude`` is odd and doesn't work as expected
-    if check_to_ignore_file(input_path, glob_set) {
+    // We need to do this because the swc `exclude` is odd and doesn't work as expected
+    if check_to_ignore(input_path, glob_set) {
         return;
     }
 
@@ -159,16 +159,12 @@ fn compile_directory(
         };
 
         let path = entry.path();
-        if path.is_dir() && check_to_ignore_file(path, glob_set) {
-            debug!("Ignoring directory: {:?}", path);
+        if path.is_dir() && check_to_ignore(path, glob_set) {
             it.skip_current_dir();
             continue;
-        }
-
-        if path.is_file()
-            && (path
-                .extension()
-                .map_or(false, |ext| ext == "ts" || ext == "tsx" || ext == "js"))
+        } else if path
+            .extension()
+            .map_or(false, |ext| ext == "ts" || ext == "tsx" || ext == "js")
         {
             compile_file(path, compiler, options, glob_set);
         }

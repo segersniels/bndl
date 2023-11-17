@@ -1,4 +1,6 @@
+use log::debug;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use swc::config::{Config, ModuleConfig, Options, SourceMapsConfig};
@@ -6,7 +8,6 @@ use swc::{
     config::{JscConfig, Paths},
     BoolConfig,
 };
-
 use swc_ecma_parser::{Syntax, TsConfig};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -137,13 +138,63 @@ fn merge_compiler_options(
     }
 }
 
-fn load_and_merge_tsconfig(config_path: &Path) -> serde_json::Result<TsConfigJson> {
-    let config_str =
-        fs::read_to_string(config_path).unwrap_or(String::from("{\"compilerOptions\": {}}"));
+/// We will attempt to find the config in the internal packages if we can't resolve
+/// it as a relative path. We do this by constantly stripping the last part from the
+/// path and checking if the stripped down path exists in the internal packages list.
+/// Once we identify it's an internal package we fetch the config from the internal package
+/// by appending what we stripped during our lookup.
+///
+/// If we can't find the config in the internal packages, we return an empty config.
+fn fetch_config_content(
+    config_path: &Path,
+    internal_packages: &HashMap<String, PathBuf>,
+) -> String {
+    match fs::read_to_string(config_path) {
+        Ok(config_str) => config_str,
+        Err(_) => {
+            let mut relative_path_to_append = Vec::new();
+            let mut path = config_path.to_str().unwrap();
+            let mut content = String::from("{\"compilerOptions\": {}}");
 
+            loop {
+                let package_name = if let Some(index) = path.rfind('/') {
+                    relative_path_to_append.push(&path[index + 1..]);
+                    &path[..index]
+                } else {
+                    // We've reached the end of the extend and didn't find a valid package
+                    break;
+                };
+
+                // Look up the path for the specified package
+                if let Some(package_path) = internal_packages.get(package_name) {
+                    // Need to reverse to get the correct order again since we stripped from the end
+                    relative_path_to_append.reverse();
+
+                    // Construct full path to try and fetch
+                    let full_path = package_path.join(relative_path_to_append.join("/"));
+                    debug!("Found internal extend {:?}", full_path);
+
+                    content = fetch_config_content(&full_path, internal_packages);
+
+                    break;
+                } else {
+                    path = package_name;
+                }
+            }
+
+            return content;
+        }
+    }
+}
+
+fn load_and_merge_tsconfig(
+    config_path: &Path,
+    internal_packages: &HashMap<String, PathBuf>,
+) -> serde_json::Result<TsConfigJson> {
+    let config_str = fetch_config_content(config_path, internal_packages);
     let mut tsconfig: TsConfigJson = serde_json::from_str(&config_str)?;
 
-    if let Some(extends) = &tsconfig.extends {
+    if let Some(ref extends) = tsconfig.extends {
         let base_config_path = if extends.starts_with('.') {
             // Resolve the path of the base configuration relative to the child configuration
             config_path.parent().unwrap().join(extends)
@@ -152,7 +203,7 @@ fn load_and_merge_tsconfig(config_path: &Path) -> serde_json::Result<TsConfigJso
             PathBuf::from(extends)
         };
 
-        let base_tsconfig = load_and_merge_tsconfig(&base_config_path)?;
+        let base_tsconfig = load_and_merge_tsconfig(&base_config_path, internal_packages)?;
         tsconfig.compilerOptions =
             merge_compiler_options(&base_tsconfig.compilerOptions, &tsconfig.compilerOptions);
     }
@@ -182,7 +233,9 @@ pub fn fetch_tsconfig(config_path: &str) -> Result<TsConfigJson, String> {
         return Err(format!("Unable to find {}", config_path));
     }
 
-    match load_and_merge_tsconfig(path) {
+    let packages = bndl_deps::fetch_packages();
+
+    match load_and_merge_tsconfig(path, &packages) {
         Ok(tsconfig) => Ok(tsconfig),
         Err(e) => Err(format!("Error parsing tsconfig.json: {}", e)),
     }

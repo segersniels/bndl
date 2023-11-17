@@ -223,6 +223,7 @@ name = "bndl_cli"
 version = "1.0.3"
 dependencies = [
  "bndl_convert",
+ "bndl_deps",
  "clap",
  "env_logger",
  "globset",
@@ -240,13 +241,26 @@ dependencies = [
 name = "bndl_convert"
 version = "1.0.3"
 dependencies = [
+ "bndl_deps",
  "clap",
+ "env_logger",
+ "log",
  "serde",
  "serde_json",
  "swc",
  "swc_common",
  "swc_ecma_ast",
  "swc_ecma_parser",
+]
+
+[[package]]
+name = "bndl_deps"
+version = "1.0.0"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
+ "walkdir",
 ]
 
 [[package]]

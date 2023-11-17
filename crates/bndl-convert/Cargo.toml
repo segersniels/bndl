@@ -20,7 +20,10 @@ name = "bndl_convert"
 filename = "bndl-convert"
 
 [dependencies]
+bndl_deps = { version = "1.0.0", path = "../bndl-deps" }
 clap = "4.4.8"
+env_logger = "0.10.1"
+log = "0.4.20"
 serde = "1.0.192"
 serde_json = "1.0.108"
 swc = "0.269.47"
