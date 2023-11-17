@@ -77,6 +77,14 @@ fn extend_source_map(
     buf
 }
 
+fn determine_source_file_name(input_path: &Path, output_path: &Path) -> Option<String> {
+    pathdiff::diff_paths(
+        input_path.canonicalize().unwrap(),
+        output_path.canonicalize().unwrap(),
+    )
+    .map(|diff| diff.to_string_lossy().to_string())
+}
+
 fn compile_file(
     input_path: &Path,
     compiler: &swc::Compiler,
@@ -89,6 +97,15 @@ fn compile_file(
         return;
     }
 
+    let output_path = options.output_path.as_ref().unwrap();
+    let output_file_path = output_path.join(input_path).with_extension("js");
+    let source_map_path = output_file_path.with_extension("js.map");
+
+    // Create missing directories if they don't exist yet
+    if let Some(path) = output_file_path.parent() {
+        fs::create_dir_all(path).expect("Failed to create directory");
+    };
+
     let transform_output = GLOBALS.set(&Default::default(), || {
         swc::try_with_handler(compiler.cm.clone(), Default::default(), |handler| {
             let fm: Arc<swc_common::SourceFile> = compiler
@@ -96,13 +113,22 @@ fn compile_file(
                 .load_file(input_path)
                 .expect("failed to load file");
 
-            compiler.process_js_file(fm, handler, options)
+            let source_file_name =
+                determine_source_file_name(input_path, output_file_path.parent().unwrap());
+
+            compiler.process_js_file(
+                fm,
+                handler,
+                &swc::config::Options {
+                    source_file_name,
+                    ..options.clone()
+                },
+            )
         })
     });
 
     match transform_output {
         Ok(mut output) => {
-            let output_path = options.output_path.as_ref().unwrap();
             let source_file_name = &options.source_file_name;
             let source_root = &options.source_root;
 
@@ -115,14 +141,7 @@ fn compile_file(
                 return;
             }
 
-            let output_file_path = output_path.join(input_path).with_extension("js");
-            if let Some(p) = output_file_path.parent() {
-                fs::create_dir_all(p).expect("Failed to create directory");
-            };
-
             if let Some(ref source_map) = source_map {
-                let source_map_path = output_file_path.with_extension("js.map");
-
                 output.code.push_str("\n//# sourceMappingURL=");
                 output
                     .code
