@@ -1,38 +1,10 @@
 # bndl_convert
 
-Internal conversion crate to transform a `tsconfig.json` into an SWC compatible `JSConfig`.
+Transform a `tsconfig.json` to an `.swcrc` compatible config.
 
 ## Usage
-
-### CLI
 
 ```bash
 $ cargo +nightly install bndl_convert # or npm install -g bndl-convert
 $ bndl-convert --minify ./tsconfig.json
-```
-
-### Crate
-
-```bash
-$ cargo add bndl_convert
-```
-
-```rust
-use bndl_convert::{convert, fetch_tsconfig}
-use swc::config::Options;
-
-fn main() {
-     match fetch_tsconfig("./tsconfig.json") {
-        Ok(ts_config) => {
-            let config = convert(&ts_config, None, None);
-            let options: Options = Options {
-                config,
-                ..Default::default()
-            };
-        }
-        Err(e) => {
-            eprintln!("{}", e)
-        }
-    }
-}
 ```
