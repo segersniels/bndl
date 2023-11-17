@@ -208,31 +208,14 @@ fn load_and_merge_tsconfig(
     Ok(tsconfig)
 }
 
-/// Fetch a `tsconfig.json` and merge it with any `extends` configurations
-///
-/// ```rust
-/// use bndl_convert::{convert, fetch_tsconfig}
-///
-/// fn main() {
-///      match fetch_tsconfig("./tsconfig.json") {
-///         Ok(ts_config) => {
-///             let options = convert(&ts_config, None, None);
-///         }
-///         Err(e) => {
-///             eprintln!("{}", e)
-///         }
-///     }
-/// }
-/// ```
-pub fn fetch_tsconfig(config_path: &str) -> Result<TsConfigJson, String> {
-    let path = Path::new(config_path);
-    if !path.exists() {
-        return Err(format!("Unable to find {}", config_path));
+pub fn fetch_tsconfig(config_path: &Path) -> Result<TsConfigJson, String> {
+    if !config_path.exists() {
+        return Err(format!("Unable to find {:?}", config_path));
     }
 
     let packages = bndl_deps::fetch_packages();
 
-    match load_and_merge_tsconfig(path, &packages) {
+    match load_and_merge_tsconfig(config_path, &packages) {
         Ok(tsconfig) => Ok(tsconfig),
         Err(e) => Err(format!("Error parsing tsconfig.json: {}", e)),
     }
@@ -275,7 +258,7 @@ fn convert_module(module: &Option<String>) -> Option<swc::config::ModuleConfig> 
 }
 
 fn determine_base_url(base_url: Option<String>) -> PathBuf {
-    Path::new(base_url.unwrap_or_default().trim_start_matches("./")).to_path_buf()
+    PathBuf::from(base_url.unwrap_or_default().trim_start_matches("./"))
 }
 
 fn determine_paths(base_url: &Path, paths: Option<Paths>) -> Paths {
@@ -286,37 +269,12 @@ fn determine_paths(base_url: &Path, paths: Option<Paths>) -> Paths {
     paths.unwrap_or_default()
 }
 
-/// Transform a `tsconfig.json` into an SWC compatible `JSConfig`
-///
-/// * `minify_output` - Tell SWC to minify the output bundle
-/// * `enable_experimental_swc_declarations` - The internal `d.ts` behavior of SWC is weird,
-/// you can disable this in most cases (there is probably a reason why it's not exposed to the NPM package)
-///
-/// ```rust
-/// use bndl_convert::{convert, fetch_tsconfig}
-/// use swc::config::Options;
-///
-/// fn main() {
-///      match fetch_tsconfig("./tsconfig.json") {
-///         Ok(ts_config) => {
-///             let options = convert(&ts_config, None, None);
-///             let options: Options = Options {
-///                 // Do whatever you want with the converted options
-///                 ..config,
-///             };
-///         }
-///         Err(e) => {
-///             eprintln!("{}", e)
-///         }
-///     }
-/// }
-/// ```
-pub fn convert(
-    ts_config: &TsConfigJson,
+fn convert_impl(
+    tsconfig: &TsConfigJson,
     minify_output: Option<bool>,
     enable_experimental_swc_declarations: Option<bool>,
 ) -> swc::config::Options {
-    if let Some(compiler_options) = ts_config.compilerOptions.clone() {
+    if let Some(compiler_options) = tsconfig.compilerOptions.clone() {
         let base_url = determine_base_url(compiler_options.baseUrl);
         let paths = determine_paths(&base_url, compiler_options.paths);
         let inline_sources = compiler_options.inlineSources.unwrap_or(false);
@@ -326,7 +284,7 @@ pub fn convert(
             output_path: if out_dir.is_empty() {
                 None
             } else {
-                Some(Path::new(&out_dir).to_path_buf())
+                Some(PathBuf::from(&out_dir))
             },
             source_maps: if inline_sources {
                 Some(swc::config::SourceMapsConfig::Str(String::from("inline")))
@@ -386,4 +344,37 @@ pub fn convert(
             ..Default::default()
         }
     }
+}
+
+/// Transform a `tsconfig.json` into an SWC compatible `JSConfig`. Can fail if the
+/// `tsconfig.json` is invalid or can't be fetched.
+///
+/// * `minify_output` - Tell SWC to minify the output bundle
+/// * `enable_experimental_swc_declarations` - The internal `d.ts` behavior of SWC is weird,
+/// you can disable this in most cases (there is probably a reason why it's not exposed to the NPM package)
+pub fn convert_from_path(
+    config_path: &Path,
+    minify_output: Option<bool>,
+    enable_experimental_swc_declarations: Option<bool>,
+) -> Result<swc::config::Options, String> {
+    let tsconfig = fetch_tsconfig(config_path)?;
+    let options = convert_impl(
+        &tsconfig,
+        minify_output,
+        enable_experimental_swc_declarations,
+    );
+
+    Ok(options)
+}
+
+pub fn convert_from_tsconfig(
+    tsconfig: &TsConfigJson,
+    minify_output: Option<bool>,
+    enable_experimental_swc_declarations: Option<bool>,
+) -> swc::config::Options {
+    convert_impl(
+        &tsconfig,
+        minify_output,
+        enable_experimental_swc_declarations,
+    )
 }

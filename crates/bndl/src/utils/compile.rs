@@ -1,11 +1,14 @@
-use bndl_convert::{convert, SerializableOptions, TsConfigJson};
+use bndl_convert::SerializableOptions;
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use log::debug;
+use std::path::PathBuf;
 use std::{env, fs, process};
 use std::{path::Path, sync::Arc};
-use swc::{self, config::Options};
+use swc;
 use swc_common::{SourceMap, GLOBALS};
 use walkdir::WalkDir;
+
+use crate::utils::bundle;
 
 /// Removes the output directory if it exists
 pub fn clean_out_dir(out_path: &Path) {
@@ -14,7 +17,7 @@ pub fn clean_out_dir(out_path: &Path) {
     }
 
     let dir_to_delete = env::current_dir()
-        .unwrap_or(Path::new(".").to_path_buf())
+        .unwrap_or(PathBuf::from("."))
         .join(out_path);
 
     if dir_to_delete.exists() {
@@ -24,7 +27,7 @@ pub fn clean_out_dir(out_path: &Path) {
 }
 
 /// Creates .d.ts files for the project
-fn create_tsc_dts(project: &str, out_path: &Path) -> std::process::Output {
+fn create_tsc_dts(project: &Path, out_path: &Path) -> std::process::Output {
     let args = vec![
         "tsc",
         "-d",
@@ -32,7 +35,7 @@ fn create_tsc_dts(project: &str, out_path: &Path) -> std::process::Output {
         "--outDir",
         out_path.to_str().unwrap(),
         "--project",
-        project,
+        project.to_str().unwrap(),
     ];
 
     std::process::Command::new("npx")
@@ -77,7 +80,7 @@ fn extend_source_map(
 fn compile_file(
     input_path: &Path,
     compiler: &swc::Compiler,
-    options: &Options,
+    options: &swc::config::Options,
     glob_set: &GlobSet,
 ) {
     // Check if we should ignore the file based on the tsconfig exclude
@@ -140,7 +143,7 @@ fn compile_file(
 fn compile_directory(
     input_path: &Path,
     compiler: &swc::Compiler,
-    options: &Options,
+    options: &swc::config::Options,
     glob_set: &GlobSet,
 ) {
     let mut it = WalkDir::new(input_path).into_iter();
@@ -165,24 +168,37 @@ fn compile_directory(
     }
 }
 
-pub fn transpile(
-    mut input_path: &Path,
-    out_path: &Path,
-    ts_config: &TsConfigJson,
-    config_path: &str,
-    minify_output: bool,
-) {
-    input_path = Path::new(input_path.to_str().unwrap().trim_start_matches("./"));
-    let output_path = env::current_dir()
-        .unwrap_or(Path::new(".").to_path_buf())
-        .join(out_path);
+#[derive(Clone)]
+pub struct TranspileOptions {
+    pub filename: PathBuf,
+    /// Overrides the internal tsconfig outDir
+    pub out_dir: Option<String>,
+    pub config_path: PathBuf,
+    pub minify_output: bool,
+    pub clean: bool,
+    pub bundle: bool,
+}
 
-    let cm = Arc::<SourceMap>::default();
-    let compiler = swc::Compiler::new(cm);
+pub fn transpile(opts: TranspileOptions) -> Result<(), String> {
+    let input_path = Path::new(opts.filename.to_str().unwrap().trim_start_matches("./"));
+    let tsconfig = bndl_convert::fetch_tsconfig(&opts.config_path)?;
+
+    let out_dir = if let Some(out_dir) = opts.out_dir {
+        PathBuf::from(out_dir)
+    } else if let Some(compiler_options) = tsconfig.clone().compilerOptions {
+        PathBuf::from(&compiler_options.outDir.unwrap_or(String::from("dist")))
+    } else {
+        PathBuf::from("dist")
+    };
+
+    if opts.clean {
+        clean_out_dir(&out_dir);
+    }
+
     let options = swc::config::Options {
-        output_path: Some(output_path.clone()),
+        output_path: Some(out_dir.clone()),
         swcrc: false,
-        ..convert(ts_config, Some(minify_output), None)
+        ..bndl_convert::convert_from_tsconfig(&tsconfig, Some(opts.minify_output), None)
     };
 
     debug!(
@@ -192,8 +208,8 @@ pub fn transpile(
 
     // Build a glob set based on the tsconfig exclude
     let mut builder = GlobSetBuilder::new();
-    if ts_config.exclude.is_some() {
-        let exclude = ts_config.exclude.as_ref().unwrap();
+    if tsconfig.exclude.is_some() {
+        let exclude = tsconfig.exclude.as_ref().unwrap();
         for e in exclude {
             let mut glob = e.to_owned();
 
@@ -212,6 +228,8 @@ pub fn transpile(
         }
     }
 
+    let cm = Arc::<SourceMap>::default();
+    let compiler = swc::Compiler::new(cm);
     let glob_set = builder.build().expect("Failed to build glob set");
 
     if input_path.is_file() {
@@ -221,16 +239,30 @@ pub fn transpile(
     }
 
     // Rely on `tsc` to provide .d.ts files since SWC's implementation is a bit weird
-    if let Some(compiler_options) = ts_config.clone().compilerOptions {
+    if let Some(compiler_options) = tsconfig.clone().compilerOptions {
         if compiler_options.declaration.unwrap_or_default() {
             // Give preference to specified declaration directory in tsconfig
             let declaration_dir = if compiler_options.declarationDir.is_some() {
                 Path::new(compiler_options.declarationDir.as_ref().unwrap())
             } else {
-                output_path.as_path()
+                out_dir.as_path()
             };
 
-            create_tsc_dts(config_path, declaration_dir);
+            create_tsc_dts(&opts.config_path, declaration_dir);
         }
     }
+
+    // Bundle the monorepo dependencies if the flag is set
+    if opts.bundle {
+        match bundle::bundle(&out_dir) {
+            Ok(_) => {
+                debug!("Successfully bundled all dependencies");
+            }
+            Err(e) => {
+                eprintln!("{}", e);
+            }
+        }
+    }
+
+    Ok(())
 }

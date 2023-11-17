@@ -1,7 +1,7 @@
-use bndl_convert::{fetch_tsconfig, SerializableOptions};
+use bndl_convert::SerializableOptions;
 use clap::{ArgAction, Command};
 use serde_json::Value;
-use std::{env, process};
+use std::{env, path::PathBuf, process};
 use swc::config::Options;
 
 fn cli() -> Command {
@@ -86,9 +86,8 @@ fn main() {
         _ => "tsconfig.json",
     };
 
-    match fetch_tsconfig(filename) {
-        Ok(tsconfig) => {
-            let options = bndl_convert::convert(&tsconfig, Some(minify_output), None);
+    match bndl_convert::convert_from_path(&PathBuf::from(filename), Some(minify_output), None) {
+        Ok(options) => {
             let cleaned_options = parse_options_before_logging(&options);
 
             println!(

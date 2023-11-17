@@ -1,6 +1,6 @@
 use log::debug;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::{env, io};
 
 fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> {
@@ -19,8 +19,9 @@ fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> 
 }
 
 pub fn bundle(out_path: &Path) -> Result<(), String> {
-    let app_dir = env::current_dir().unwrap_or(Path::new(".").to_path_buf());
-    let dependencies = bndl_deps::fetch_used_dependencies();
+    let app_dir = env::current_dir().unwrap_or(PathBuf::from("."));
+    let dependencies: std::collections::HashMap<String, std::path::PathBuf> =
+        bndl_deps::fetch_used_dependencies();
 
     for (name, path) in dependencies.iter() {
         let compiled_dependency_path = Path::new(path).join(out_path);

@@ -1,9 +1,9 @@
-use std::path::Path;
+use std::path::PathBuf;
 
-use bndl_convert::fetch_tsconfig;
 use clap::{ArgAction, Command};
 use human_panic::setup_panic;
-use log::debug;
+
+use crate::utils::compile::TranspileOptions;
 
 mod utils;
 
@@ -57,49 +57,20 @@ fn main() {
         .get_one::<String>("project")
         .unwrap_or(&default_config);
 
-    let minify_output = matches.get_flag("minify");
     let input_path = match matches.subcommand() {
-        Some((query, _)) => Path::new(query),
-        _ => Path::new("."),
+        Some((query, _)) => PathBuf::from(query),
+        _ => PathBuf::from("."),
     };
 
-    match fetch_tsconfig(config_path) {
-        Ok(ts_config) => {
-            let ts_config_out_dir =
-                if let Some(compiler_options) = ts_config.clone().compilerOptions {
-                    compiler_options.outDir.unwrap_or_default()
-                } else {
-                    String::from("dist")
-                };
-
-            let out_path = Path::new(
-                matches
-                    .get_one::<String>("outDir")
-                    .unwrap_or(&ts_config_out_dir),
-            );
-
-            // Clean the output directory if the flag is set
-            if matches.get_flag("clean") {
-                utils::compile::clean_out_dir(out_path);
-            }
-
-            // Transpile the code to javascript
-            utils::compile::transpile(input_path, out_path, &ts_config, config_path, minify_output);
-
-            // Bundle the monorepo dependencies if the flag is set
-            if !matches.get_flag("no-bundle") {
-                match utils::bundle::bundle(out_path) {
-                    Ok(_) => {
-                        debug!("Successfully bundled all dependencies");
-                    }
-                    Err(e) => {
-                        eprintln!("{}", e);
-                    }
-                }
-            }
-        }
-        Err(e) => {
-            eprintln!("{}", e)
-        }
+    // Transpile the code to javascript
+    if let Err(err) = utils::compile::transpile(TranspileOptions {
+        filename: input_path,
+        out_dir: matches.get_one::<String>("outDir").cloned(),
+        config_path: PathBuf::from(config_path),
+        minify_output: matches.get_flag("minify"),
+        clean: matches.get_flag("clean"),
+        bundle: !matches.get_flag("no-bundle"),
+    }) {
+        eprintln!("{err}");
     }
 }
