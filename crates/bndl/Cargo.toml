@@ -30,3 +30,4 @@ sourcemap = "7.0.1"
 swc = "0.269.47"
 swc_common = { version = "0.33.8", features = ["tty-emitter"] }
 walkdir = "2.4.0"
+pathdiff = "0.2.1"
