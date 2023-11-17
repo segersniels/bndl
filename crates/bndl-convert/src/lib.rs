@@ -346,7 +346,13 @@ fn convert_impl(
         swc::config::Options {
             config: swc::config::Config {
                 minify: BoolConfig::from(minify_output),
-                inline_sources_content: BoolConfig::from(false),
+                jsc: JscConfig {
+                    syntax: Some(Syntax::Typescript(TsConfig {
+                        dts: enable_experimental_swc_declarations.unwrap_or(false),
+                        ..Default::default()
+                    })),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
             ..Default::default()
