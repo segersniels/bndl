@@ -58,15 +58,15 @@ fn remove_unwanted_values(value: &mut Value) -> Value {
             }
             // Remove `null` elements and empty objects from the array
             vec.retain(|v| {
-                !v.is_null()
-                    && !(v.is_object() && v.as_object().map(|m| m.is_empty()).unwrap_or(false))
+                !(v.is_null()
+                    || v.is_object() && v.as_object().map(|m| m.is_empty()).unwrap_or(false))
             });
         }
         // For `null` or other types, do nothing
         _ => (),
     }
 
-    return value.to_owned();
+    value.to_owned()
 }
 
 /// Remove `null` values and empty objects from the config before logging

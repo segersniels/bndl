@@ -100,5 +100,5 @@ pub fn fetch_used_dependencies() -> HashMap<String, PathBuf> {
 
     debug!("Used dependencies: {:?}", internal_dependencies);
 
-    return internal_dependencies;
+    internal_dependencies
 }

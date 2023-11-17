@@ -71,7 +71,7 @@ fn extend_source_map(
         .to_writer(&mut buf)
         .expect("failed to decode source map");
 
-    return buf;
+    buf
 }
 
 fn compile_file(
@@ -93,7 +93,7 @@ fn compile_file(
                 .load_file(input_path)
                 .expect("failed to load file");
 
-            compiler.process_js_file(fm, handler, &options)
+            compiler.process_js_file(fm, handler, options)
         })
     });
 
@@ -104,15 +104,9 @@ fn compile_file(
             let source_root = &options.source_root;
 
             // Extend the source map so it actually has content
-            let source_map = if let Some(ref source_map) = &output.map {
-                Some(extend_source_map(
-                    source_map.to_owned(),
-                    source_file_name,
-                    source_root,
-                ))
-            } else {
-                None
-            };
+            let source_map = output.map.as_ref().map(|source_map| {
+                extend_source_map(source_map.to_owned(), source_file_name, source_root)
+            });
 
             if output.code.is_empty() {
                 return;
@@ -203,12 +197,12 @@ pub fn transpile(
         for e in exclude {
             let mut glob = e.to_owned();
 
-            if glob.ends_with("/") {
+            if glob.ends_with('/') {
                 glob = glob[0..glob.len() - 1].to_string();
             }
 
             // Absolute paths can't be matched so ensure we hit all references through a general glob
-            if !glob.starts_with("./") && !glob.starts_with("*") {
+            if !glob.starts_with("./") && !glob.starts_with('*') {
                 glob = format!("*/{glob}/**");
             }
 

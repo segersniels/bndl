@@ -156,14 +156,11 @@ fn fetch_config_content(
             let mut path = config_path.to_str().unwrap();
             let mut content = String::from("{\"compilerOptions\": {}}");
 
-            loop {
-                let package_name = if let Some(index) = path.rfind('/') {
-                    relative_path_to_append.push(&path[index + 1..]);
-                    &path[..index]
-                } else {
-                    // We've reached the end of the extend and didn't find a valid package
-                    break;
-                };
+            while let Some(index) = path.rfind('/') {
+                let package_name = &path[..index];
+
+                // Keep track of the parts we strip from the path since we need to append them later
+                relative_path_to_append.push(&path[index + 1..]);
 
                 // Look up the path for the specified package
                 if let Some(package_path) = internal_packages.get(package_name) {
@@ -182,7 +179,7 @@ fn fetch_config_content(
                 }
             }
 
-            return content;
+            content
         }
     }
 }
@@ -219,7 +216,7 @@ fn load_and_merge_tsconfig(
 /// fn main() {
 ///      match fetch_tsconfig("./tsconfig.json") {
 ///         Ok(ts_config) => {
-///             let config = convert(&ts_config, None, None);
+///             let options = convert(&ts_config, None, None);
 ///         }
 ///         Err(e) => {
 ///             eprintln!("{}", e)
@@ -302,10 +299,10 @@ fn determine_paths(base_url: &Path, paths: Option<Paths>) -> Paths {
 /// fn main() {
 ///      match fetch_tsconfig("./tsconfig.json") {
 ///         Ok(ts_config) => {
-///             let config = convert(&ts_config, None, None);
+///             let options = convert(&ts_config, None, None);
 ///             let options: Options = Options {
-///                 config,
-///                 ..Default::default()
+///                 // Do whatever you want with the converted options
+///                 ..config,
 ///             };
 ///         }
 ///         Err(e) => {
@@ -380,13 +377,13 @@ pub fn convert(
             ..Default::default()
         }
     } else {
-        return swc::config::Options {
+        swc::config::Options {
             config: swc::config::Config {
                 minify: BoolConfig::from(minify_output),
                 inline_sources_content: BoolConfig::from(false),
                 ..Default::default()
             },
             ..Default::default()
-        };
+        }
     }
 }
