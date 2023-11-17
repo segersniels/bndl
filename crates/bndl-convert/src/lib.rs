@@ -20,6 +20,7 @@ pub struct CompilerOptions {
     pub baseUrl: Option<String>,
     pub paths: Option<Paths>,
     pub inlineSources: Option<bool>,
+    pub inlineSourceMap: Option<bool>,
     pub declarationDir: Option<String>,
     pub outDir: Option<String>,
     pub removeComments: Option<bool>,
@@ -118,6 +119,9 @@ fn merge_compiler_options(
                     .clone()
                     .or_else(|| base_options.paths.clone()),
                 inlineSources: child_options.inlineSources.or(base_options.inlineSources),
+                inlineSourceMap: child_options
+                    .inlineSourceMap
+                    .or(base_options.inlineSourceMap),
                 declarationDir: child_options
                     .declarationDir
                     .clone()
@@ -277,7 +281,8 @@ fn convert_impl(
     if let Some(compiler_options) = tsconfig.compilerOptions.clone() {
         let base_url = determine_base_url(compiler_options.baseUrl);
         let paths = determine_paths(&base_url, compiler_options.paths);
-        let inline_sources = compiler_options.inlineSources.unwrap_or(false);
+        let inline_source_map = compiler_options.inlineSourceMap.unwrap_or(false);
+        let inline_sources_content = compiler_options.inlineSources.unwrap_or(false);
         let out_dir = compiler_options.outDir.unwrap_or_default();
 
         swc::config::Options {
@@ -286,7 +291,7 @@ fn convert_impl(
             } else {
                 Some(PathBuf::from(&out_dir))
             },
-            source_maps: if inline_sources {
+            source_maps: if inline_source_map {
                 Some(swc::config::SourceMapsConfig::Str(String::from("inline")))
             } else {
                 Some(swc::config::SourceMapsConfig::Bool(
@@ -296,8 +301,8 @@ fn convert_impl(
             config: swc::config::Config {
                 minify: BoolConfig::from(minify_output),
                 module: convert_module(&compiler_options.module),
-                inline_sources_content: BoolConfig::from(false),
-                source_maps: if inline_sources {
+                inline_sources_content: BoolConfig::from(inline_sources_content),
+                source_maps: if inline_source_map {
                     Some(swc::config::SourceMapsConfig::Str(String::from("inline")))
                 } else {
                     Some(swc::config::SourceMapsConfig::Bool(
