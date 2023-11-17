@@ -53,7 +53,7 @@ impl From<&Config> for SerializableConfig {
         SerializableConfig {
             jsc: internal.jsc.clone(),
             source_maps: internal.source_maps.clone(),
-            inline_sources_content: internal.inline_sources_content.clone(),
+            inline_sources_content: internal.inline_sources_content,
             module: internal.module.clone(),
             minify: internal.minify,
         }
@@ -390,7 +390,7 @@ pub fn convert_from_tsconfig(
     enable_experimental_swc_declarations: Option<bool>,
 ) -> swc::config::Options {
     convert_impl(
-        &tsconfig,
+        tsconfig,
         minify_output,
         enable_experimental_swc_declarations,
     )

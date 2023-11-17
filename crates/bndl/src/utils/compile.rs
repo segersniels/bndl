@@ -65,8 +65,8 @@ fn extend_source_map(
         }
     }
 
-    if source_root.is_some() {
-        source_map.set_source_root(source_root.clone());
+    if let Some(root) = source_root {
+        source_map.set_source_root(Some(root.to_string()));
     }
 
     let mut buf = vec![];
