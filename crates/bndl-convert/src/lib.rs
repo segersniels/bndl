@@ -41,6 +41,8 @@ pub struct SerializableConfig {
     #[serde(default)]
     pub source_maps: Option<SourceMapsConfig>,
     #[serde(default)]
+    pub inline_sources_content: BoolConfig<true>,
+    #[serde(default)]
     pub module: Option<ModuleConfig>,
     #[serde(default)]
     pub minify: BoolConfig<false>,
@@ -51,6 +53,7 @@ impl From<&Config> for SerializableConfig {
         SerializableConfig {
             jsc: internal.jsc.clone(),
             source_maps: internal.source_maps.clone(),
+            inline_sources_content: internal.inline_sources_content.clone(),
             module: internal.module.clone(),
             minify: internal.minify,
         }
