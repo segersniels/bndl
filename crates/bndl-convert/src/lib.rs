@@ -395,3 +395,14 @@ pub fn convert_from_tsconfig(
         enable_experimental_swc_declarations,
     )
 }
+
+/// Based on a given `tsconfig.json` determine the compiled output directory
+pub fn determine_out_dir(tsconfig: &TsConfigJson, override_out_dir: Option<String>) -> PathBuf {
+    if let Some(out_dir) = override_out_dir {
+        PathBuf::from(out_dir)
+    } else if let Some(compiler_options) = tsconfig.clone().compilerOptions {
+        PathBuf::from(&compiler_options.outDir.unwrap_or(String::from("dist")))
+    } else {
+        PathBuf::from("dist")
+    }
+}

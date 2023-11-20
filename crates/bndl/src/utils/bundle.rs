@@ -18,14 +18,18 @@ fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> 
     Ok(())
 }
 
-pub fn bundle(out_path: &Path) -> Result<(), String> {
+pub fn bundle(app_out_path: &PathBuf) -> Result<(), String> {
     let app_dir = env::current_dir().unwrap_or(PathBuf::from("."));
     let dependencies: std::collections::HashMap<String, std::path::PathBuf> =
         bndl_deps::fetch_used_dependencies();
 
     for (name, path) in dependencies.iter() {
-        let compiled_dependency_path = Path::new(path).join(out_path);
-        let destination = app_dir.join(out_path).join("node_modules").join(name);
+        let config_path = path.join("tsconfig.json");
+        let tsconfig = bndl_convert::fetch_tsconfig(&config_path)?;
+        let out_dir = bndl_convert::determine_out_dir(&tsconfig, None);
+
+        let compiled_dependency_path = path.join(out_dir);
+        let destination = app_dir.join(app_out_path).join("node_modules").join(name);
 
         // Check if we have to copy over the compiled dependency or the source code directly
         let source: std::path::PathBuf = if compiled_dependency_path.exists() {

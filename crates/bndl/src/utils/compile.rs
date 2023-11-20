@@ -207,14 +207,7 @@ pub struct TranspileOptions {
 pub fn transpile(opts: TranspileOptions) -> Result<(), String> {
     let input_path = Path::new(opts.filename.to_str().unwrap().trim_start_matches("./"));
     let tsconfig = bndl_convert::fetch_tsconfig(&opts.config_path)?;
-
-    let out_dir = if let Some(out_dir) = opts.out_dir {
-        PathBuf::from(out_dir)
-    } else if let Some(compiler_options) = tsconfig.clone().compilerOptions {
-        PathBuf::from(&compiler_options.outDir.unwrap_or(String::from("dist")))
-    } else {
-        PathBuf::from("dist")
-    };
+    let out_dir = bndl_convert::determine_out_dir(&tsconfig, opts.out_dir);
 
     if opts.clean {
         clean_out_dir(&out_dir);
