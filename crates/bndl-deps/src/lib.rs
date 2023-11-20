@@ -80,7 +80,7 @@ pub fn fetch_packages() -> HashMap<String, PathBuf> {
                 packages.insert(package_json.name, path.parent().unwrap().to_owned());
             }
 
-            debug!("Packages: {:?}", packages);
+            debug!("Identified monorepo packages: {:?}", packages);
 
             packages
         }
@@ -99,7 +99,10 @@ pub fn fetch_used_dependencies() -> HashMap<String, PathBuf> {
         .map(|(name, path)| (name.clone(), path.clone()))
         .collect();
 
-    debug!("Used dependencies: {:?}", internal_dependencies);
+    debug!(
+        "Dependencies used by {}: {:?}",
+        package_json.name, internal_dependencies
+    );
 
     internal_dependencies
 }
