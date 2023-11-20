@@ -4,13 +4,13 @@
   "description": "Convert a tsconfig.json to an SWC compatible config",
   "files": [
     "bin",
-    "scripts/preinstall.sh"
+    "scripts/preinstall.js"
   ],
   "bin": {
     "bndl-convert": "./bin/bndl-convert"
   },
   "scripts": {
-    "preinstall": "PREINSTALL_BINARY=bndl-convert ./scripts/preinstall.sh"
+    "preinstall": "PREINSTALL_BINARY=bndl-convert node scripts/preinstall.js"
   },
   "author": "Niels Segers",
   "license": "ISC",

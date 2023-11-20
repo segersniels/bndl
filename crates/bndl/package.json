@@ -4,13 +4,13 @@
   "description": "A basic TypeScript transpiling and bundling tool for (primarily backend) monorepos",
   "files": [
     "bin",
-    "scripts/preinstall.sh"
+    "scripts/preinstall.js"
   ],
   "bin": {
     "bndl": "./bin/bndl"
   },
   "scripts": {
-    "preinstall": "PREINSTALL_BINARY=bndl ./scripts/preinstall.sh"
+    "preinstall": "PREINSTALL_BINARY=bndl node scripts/preinstall.js"
   },
   "author": "Niels Segers",
   "license": "ISC",
