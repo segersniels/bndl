@@ -1,5 +1,4 @@
-use bndl_convert::SerializableOptions;
-use globset::{Glob, GlobSet, GlobSetBuilder};
+use bndl_convert::{GlobSetConfig, SerializableOptions};
 use log::debug;
 use std::path::PathBuf;
 use std::{env, fs, process};
@@ -47,12 +46,12 @@ fn create_tsc_dts(project: &Path, out_path: &Path) -> std::process::Output {
         .expect("Failed to execute command")
 }
 
-fn check_to_ignore_dir(entry: &DirEntry, glob_set: &GlobSet) -> bool {
-    glob_set.is_match(entry.path()) || entry.file_name() == "node_modules"
+fn check_to_ignore_dir(entry: &DirEntry, glob_sets: &GlobSetConfig) -> bool {
+    glob_sets.exclude.is_match(entry.path()) || entry.file_name() == "node_modules"
 }
 
-fn check_to_ignore_file(file: &Path, glob_set: &GlobSet) -> bool {
-    glob_set.is_match(file)
+fn check_to_ignore_file(file: &Path, glob_sets: &GlobSetConfig) -> bool {
+    glob_sets.exclude.is_match(file) || !glob_sets.include.is_match(file)
 }
 
 /// Ensures that the source map has the correct source file name and source root
@@ -94,11 +93,11 @@ fn compile_file(
     input_path: &Path,
     compiler: &swc::Compiler,
     options: &swc::config::Options,
-    glob_set: &GlobSet,
+    glob_sets: &GlobSetConfig,
 ) {
     // Check if we should ignore the file based on the tsconfig exclude
     // We need to do this because the swc `exclude` is odd and doesn't work as expected
-    if check_to_ignore_file(input_path, glob_set) {
+    if check_to_ignore_file(input_path, glob_sets) {
         return;
     }
 
@@ -170,7 +169,7 @@ fn compile_directory(
     input_path: &Path,
     compiler: &swc::Compiler,
     options: &swc::config::Options,
-    glob_set: &GlobSet,
+    glob_sets: &GlobSetConfig,
 ) {
     let mut it = WalkDir::new(input_path).into_iter();
 
@@ -182,7 +181,7 @@ fn compile_directory(
         };
 
         let path = entry.path();
-        if path.is_dir() && check_to_ignore_dir(&entry, glob_set) {
+        if path.is_dir() && check_to_ignore_dir(&entry, glob_sets) {
             it.skip_current_dir();
             continue;
         } else if path.is_symlink() {
@@ -192,7 +191,7 @@ fn compile_directory(
             .extension()
             .map_or(false, |ext| ext == "ts" || ext == "tsx" || ext == "js")
         {
-            compile_file(path, compiler, options, glob_set);
+            compile_file(path, compiler, options, glob_sets);
         }
     }
 }
@@ -228,36 +227,16 @@ pub fn transpile(opts: TranspileOptions) -> Result<(), String> {
         serde_json::to_string_pretty(&SerializableOptions::from(&options)).unwrap()
     );
 
-    // Build a glob set based on the tsconfig exclude
-    let mut builder = GlobSetBuilder::new();
-    if tsconfig.exclude.is_some() {
-        let exclude = tsconfig.exclude.as_ref().unwrap();
-        for e in exclude {
-            let mut glob = e.to_owned();
-
-            if glob.ends_with('/') {
-                glob = glob[0..glob.len() - 1].to_string();
-            }
-
-            // Absolute paths can't be matched so ensure we hit all references through a general glob
-            if !glob.starts_with("./") && !glob.starts_with('*') {
-                glob = format!("*/{glob}/**");
-            }
-
-            debug!("Adding {glob} to globset");
-
-            builder.add(Glob::new(glob.as_str()).unwrap());
-        }
-    }
+    // Build glob sets based on the tsconfig include & exclude
+    let glob_sets = bndl_convert::determine_include_and_exclude(&tsconfig);
 
     let cm = Arc::<SourceMap>::default();
     let compiler = swc::Compiler::new(cm);
-    let glob_set = builder.build().expect("Failed to build glob set");
 
     if input_path.is_file() {
-        compile_file(input_path, &compiler, &options, &glob_set);
+        compile_file(input_path, &compiler, &options, &glob_sets);
     } else {
-        compile_directory(input_path, &compiler, &options, &glob_set);
+        compile_directory(input_path, &compiler, &options, &glob_sets);
     }
 
     // Rely on `tsc` to provide .d.ts files since SWC's implementation is a bit weird
