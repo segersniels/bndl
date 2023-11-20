@@ -17,7 +17,8 @@ fn fetch_package_json(path: &Path) -> PackageJson {
         return PackageJson::default();
     }
 
-    let package_json_str = fs::read_to_string(path).expect("Unable to read package.json");
+    let package_json_str =
+        fs::read_to_string(&path).expect(format!("Unable to read {:?}", path).as_str());
 
     match serde_json::from_str(&package_json_str) {
         Ok(package_json) => package_json,

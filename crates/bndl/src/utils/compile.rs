@@ -22,7 +22,8 @@ pub fn clean_out_dir(out_path: &Path) {
 
     if dir_to_delete.exists() {
         debug!("Cleaning output directory: {:?}", dir_to_delete);
-        fs::remove_dir_all(dir_to_delete).expect("Failed to remove directory");
+        fs::remove_dir_all(&dir_to_delete)
+            .expect(format!("Failed to remove directory {:?}", dir_to_delete).as_str());
     }
 }
 
@@ -103,7 +104,7 @@ fn compile_file(
 
     // Create missing directories if they don't exist yet
     if let Some(path) = output_file_path.parent() {
-        fs::create_dir_all(path).expect("Failed to create directory");
+        fs::create_dir_all(path).expect(format!("Failed to create directory {:?}", path).as_str());
     };
 
     let transform_output = GLOBALS.set(&Default::default(), || {
@@ -111,7 +112,7 @@ fn compile_file(
             let fm: Arc<swc_common::SourceFile> = compiler
                 .cm
                 .load_file(input_path)
-                .expect("failed to load file");
+                .expect(format!("failed to load file {:?}", input_path).as_str());
 
             let source_file_name =
                 determine_source_file_name(input_path, output_file_path.parent().unwrap());
@@ -147,10 +148,12 @@ fn compile_file(
                     .code
                     .push_str(&source_map_path.file_name().unwrap().to_string_lossy());
 
-                fs::write(source_map_path, source_map).expect("Failed to write to file");
+                fs::write(&source_map_path, source_map)
+                    .expect(format!("Failed to write to {:?}", source_map_path).as_str());
             }
 
-            fs::write(output_file_path, &output.code).expect("Failed to write to file");
+            fs::write(&output_file_path, &output.code)
+                .expect(format!("Failed to write to {:?}", output_file_path).as_str());
         }
         Err(e) => {
             eprintln!("{}", e);

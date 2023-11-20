@@ -36,7 +36,8 @@ pub fn bundle(out_path: &Path) -> Result<(), String> {
 
         debug!("Copying {:?} to {:?}", source, destination);
 
-        copy_dir_all(source, destination).expect("Unable to copy");
+        copy_dir_all(&source, &destination)
+            .expect(format!("Unable to copy {:?} to {:?}", source, destination).as_str());
     }
 
     Ok(())
