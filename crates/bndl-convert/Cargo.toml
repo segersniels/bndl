@@ -20,7 +20,7 @@ name = "bndl_convert"
 filename = "bndl-convert"
 
 [dependencies]
-bndl_deps = { version = "1.0.1", path = "../bndl-deps" }
+bndl_deps = { version = "1.0.2", path = "../bndl-deps" }
 clap = "4.4.8"
 env_logger = "0.10.1"
 globset = "0.4.13"

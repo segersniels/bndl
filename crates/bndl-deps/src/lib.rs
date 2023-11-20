@@ -50,11 +50,9 @@ fn find_workspace_root() -> Result<PathBuf, String> {
     Err("Unable to find workspace root".to_string())
 }
 
-/// Function to check if a directory entry is a 'node_modules' directory
-/// and skip it. We aren't interested in any of these contents and are only
-/// interested in the internal packages of the monorepo
-fn is_node_modules(entry: &DirEntry) -> bool {
-    entry.file_type().is_dir() && entry.file_name() == "node_modules"
+fn check_to_ignore_dir(entry: &DirEntry) -> bool {
+    entry.file_type().is_dir()
+        && (entry.file_name() == "node_modules" || entry.file_name() == "dist")
 }
 
 /// Fetches the internal packages of the monorepo with their name and path
@@ -62,17 +60,23 @@ pub fn fetch_packages() -> HashMap<String, PathBuf> {
     match find_workspace_root() {
         Ok(root) => {
             let mut packages = HashMap::new();
-            let walker = WalkDir::new(root)
-                .min_depth(1)
-                .into_iter()
-                .filter_entry(|e| !is_node_modules(e))
-                .filter_map(|e| e.ok());
+            let mut it = WalkDir::new(root).into_iter();
 
-            for entry in walker {
+            loop {
+                let entry = match it.next() {
+                    None => break,
+                    Some(Err(err)) => panic!("ERROR: {}", err),
+                    Some(Ok(entry)) => entry,
+                };
+
                 let path = entry.path();
-
-                // Only interested in package.json files
-                if path.is_dir() || path.file_name().unwrap_or_default() != "package.json" {
+                if path.is_dir() && check_to_ignore_dir(&entry) {
+                    it.skip_current_dir();
+                    continue;
+                } else if path.is_symlink() {
+                    // Don't bother following symlinks
+                    continue;
+                } else if path.is_dir() || path.file_name().unwrap_or_default() != "package.json" {
                     continue;
                 }
 
