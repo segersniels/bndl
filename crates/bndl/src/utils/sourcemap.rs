@@ -9,14 +9,23 @@ pub fn extend_source_map(
     let mut source_map = swc::sourcemap::SourceMap::from_reader(source_map.as_bytes())
         .expect("failed to encode source map");
 
-    if source_map.get_token_count() != 0 {
-        if let Some(ref source_file_name) = source_file_name {
+    if let Some(ref source_file_name) = source_file_name {
+        if source_map.get_token_count() != 0 {
             source_map.set_source(0u32, source_file_name);
+        }
+
+        if source_map.get_file().is_none() {
+            let path = Path::new(source_file_name).with_extension("js");
+            let file = path.file_name().unwrap();
+
+            source_map.set_file(Some(file.to_str().unwrap()));
         }
     }
 
     if let Some(root) = source_root {
         source_map.set_source_root(Some(root));
+    } else {
+        source_map.set_source_root(Some(""));
     }
 
     let mut buf = vec![];
