@@ -7,7 +7,7 @@ use swc;
 use swc_common::{SourceMap, GLOBALS};
 use walkdir::{DirEntry, WalkDir};
 
-use crate::utils::bundle;
+use crate::utils::{bundle, sourcemap};
 
 /// Removes the output directory if it exists
 pub fn clean_out_dir(out_path: &Path) {
@@ -56,39 +56,6 @@ fn check_to_ignore_file(file: &Path, glob_sets: &GlobSetConfig) -> bool {
 }
 
 /// Ensures that the source map has the correct source file name and source root
-fn extend_source_map(
-    source_map: String,
-    source_file_name: &Option<String>,
-    source_root: &Option<String>,
-) -> Vec<u8> {
-    let mut source_map = swc::sourcemap::SourceMap::from_reader(source_map.as_bytes())
-        .expect("failed to encode source map");
-
-    if !source_map.get_token_count() != 0 {
-        if let Some(ref source_file_name) = source_file_name {
-            source_map.set_source(0u32, source_file_name);
-        }
-    }
-
-    if let Some(root) = source_root {
-        source_map.set_source_root(Some(root.to_string()));
-    }
-
-    let mut buf = vec![];
-    source_map
-        .to_writer(&mut buf)
-        .expect("failed to decode source map");
-
-    buf
-}
-
-fn determine_source_file_name(input_path: &Path, output_path: &Path) -> Option<String> {
-    pathdiff::diff_paths(
-        input_path.canonicalize().unwrap(),
-        output_path.canonicalize().unwrap(),
-    )
-    .map(|diff| diff.to_string_lossy().to_string())
-}
 
 fn compile_file(
     input_path: &Path,
@@ -111,6 +78,14 @@ fn compile_file(
         fs::create_dir_all(path).expect(format!("Failed to create directory {:?}", path).as_str());
     };
 
+    let extended_options = swc::config::Options {
+        source_file_name: sourcemap::determine_source_file_name(
+            input_path,
+            output_file_path.parent().unwrap(),
+        ),
+        ..options.clone()
+    };
+
     let transform_output = GLOBALS.set(&Default::default(), || {
         swc::try_with_handler(compiler.cm.clone(), Default::default(), |handler| {
             let fm: Arc<swc_common::SourceFile> = compiler
@@ -118,28 +93,18 @@ fn compile_file(
                 .load_file(input_path)
                 .expect(format!("failed to load file {:?}", input_path).as_str());
 
-            let source_file_name =
-                determine_source_file_name(input_path, output_file_path.parent().unwrap());
-
-            compiler.process_js_file(
-                fm,
-                handler,
-                &swc::config::Options {
-                    source_file_name,
-                    ..options.clone()
-                },
-            )
+            compiler.process_js_file(fm, handler, &extended_options)
         })
     });
 
     match transform_output {
         Ok(mut output) => {
-            let source_file_name = &options.source_file_name;
-            let source_root = &options.source_root;
+            let source_file_name = &extended_options.source_file_name;
+            let source_root = &extended_options.source_root;
 
             // Extend the source map so it actually has content
             let source_map = output.map.as_ref().map(|source_map| {
-                extend_source_map(source_map.to_owned(), source_file_name, source_root)
+                sourcemap::extend_source_map(source_map.to_owned(), source_file_name, source_root)
             });
 
             if output.code.is_empty() {
