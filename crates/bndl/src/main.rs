@@ -53,9 +53,13 @@ fn main() {
 
     let matches = cli().get_matches();
     let default_config = String::from("tsconfig.json");
-    let config_path = matches
+    let mut config_path = matches
         .get_one::<String>("project")
         .unwrap_or(&default_config);
+
+    if config_path.to_owned() == "." {
+        config_path = &default_config;
+    }
 
     let input_path = match matches.subcommand() {
         Some((query, _)) => PathBuf::from(query),

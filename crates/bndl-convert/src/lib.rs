@@ -1,3 +1,4 @@
+use globset::{Glob, GlobSet, GlobSetBuilder};
 use log::debug;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -30,6 +31,7 @@ pub struct CompilerOptions {
 pub struct TsConfigJson {
     pub extends: Option<String>,
     pub compilerOptions: Option<CompilerOptions>,
+    pub include: Option<Vec<String>>,
     pub exclude: Option<Vec<String>>,
 }
 
@@ -405,4 +407,40 @@ pub fn determine_out_dir(tsconfig: &TsConfigJson, override_out_dir: Option<Strin
     } else {
         PathBuf::from("dist")
     }
+}
+
+fn construct_glob_set(glob_candidates: Option<Vec<String>>) -> GlobSet {
+    let mut builder = GlobSetBuilder::new();
+
+    if let Some(inputs) = glob_candidates {
+        for input in inputs {
+            let mut glob = input.to_owned();
+
+            if glob.ends_with('/') {
+                glob = glob[0..glob.len() - 1].to_string();
+            }
+
+            // Absolute paths can't be matched so ensure we hit all references through a general glob
+            if !glob.starts_with("./") && !glob.starts_with('*') {
+                glob = format!("*/{glob}/**");
+            }
+
+            builder.add(Glob::new(glob.as_str()).unwrap());
+        }
+    }
+
+    builder.build().expect("Failed to build glob set")
+}
+
+#[derive(Debug)]
+pub struct GlobSetConfig {
+    pub include: GlobSet,
+    pub exclude: GlobSet,
+}
+
+pub fn determine_include_and_exclude(tsconfig: &TsConfigJson) -> GlobSetConfig {
+    let include = construct_glob_set(tsconfig.clone().include);
+    let exclude = construct_glob_set(tsconfig.clone().exclude);
+
+    GlobSetConfig { include, exclude }
 }
