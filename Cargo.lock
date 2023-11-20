@@ -245,6 +245,7 @@ dependencies = [
  "bndl_deps",
  "clap",
  "env_logger",
+ "globset",
  "log",
  "serde",
  "serde_json",
