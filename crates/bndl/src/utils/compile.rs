@@ -51,7 +51,8 @@ fn check_to_ignore_dir(entry: &DirEntry, glob_sets: &GlobSetConfig) -> bool {
 }
 
 fn check_to_ignore_file(file: &Path, glob_sets: &GlobSetConfig) -> bool {
-    glob_sets.exclude.is_match(file) || !glob_sets.include.is_match(file)
+    glob_sets.exclude.is_match(file)
+        || (glob_sets.include.len() > 0 && !glob_sets.include.is_match(file))
 }
 
 /// Ensures that the source map has the correct source file name and source root
