@@ -11,7 +11,7 @@ use swc::{
 };
 use swc_ecma_parser::{Syntax, TsConfig};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct CompilerOptions {
     pub module: Option<String>,
     pub declaration: Option<bool>,
@@ -25,9 +25,10 @@ pub struct CompilerOptions {
     pub declarationDir: Option<String>,
     pub outDir: Option<String>,
     pub removeComments: Option<bool>,
+    pub resolveJsonModule: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct TsConfigJson {
     pub extends: Option<String>,
     pub compilerOptions: Option<CompilerOptions>,
@@ -139,6 +140,9 @@ fn merge_compiler_options(
                     .clone()
                     .or_else(|| base_options.outDir.clone()),
                 removeComments: child_options.removeComments.or(base_options.removeComments),
+                resolveJsonModule: child_options
+                    .resolveJsonModule
+                    .or(base_options.resolveJsonModule),
             })
         } else {
             // Child is not a valid config, return the base and don't bother merging
@@ -422,7 +426,13 @@ fn construct_glob_set(glob_candidates: Option<Vec<String>>) -> GlobSet {
 
             // Absolute paths can't be matched so ensure we hit all references through a general glob
             if !glob.starts_with("./") && !glob.starts_with('*') {
-                glob = format!("*/{glob}/**");
+                if let Some(_) = Path::new(&glob).extension() {
+                    // If the glob has an extension, we can assume it's a file
+                    glob = format!("*/{glob}");
+                } else {
+                    // If the glob doesn't have an extension, we can assume it's a directory
+                    glob = format!("*/{glob}/**");
+                }
             }
 
             builder.add(Glob::new(glob.as_str()).unwrap());

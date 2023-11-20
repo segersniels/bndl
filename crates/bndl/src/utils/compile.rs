@@ -1,4 +1,4 @@
-use bndl_convert::{GlobSetConfig, SerializableOptions};
+use bndl_convert::{GlobSetConfig, SerializableOptions, TsConfigJson};
 use log::debug;
 use std::path::PathBuf;
 use std::{env, fs, process};
@@ -165,11 +165,42 @@ fn compile_file(
     }
 }
 
+/// Mimic `tsc` behavior by copying over JSON files that are explicitly in the
+/// `include` when also `resolveJsonModule` is specified
+fn handle_json_file(
+    path: &Path,
+    options: &swc::config::Options,
+    glob_sets: &GlobSetConfig,
+    tsconfig: &TsConfigJson,
+) {
+    if !tsconfig
+        .clone()
+        .compilerOptions
+        .unwrap_or_default()
+        .resolveJsonModule
+        .unwrap_or_default()
+        || !glob_sets.include.is_match(path)
+    {
+        return;
+    }
+
+    let output_path = options.output_path.as_ref().unwrap();
+    let output_file_path = output_path.join(path);
+
+    if let Some(path) = output_file_path.parent() {
+        fs::create_dir_all(path).expect(format!("Failed to create directory {:?}", path).as_str());
+    };
+
+    fs::copy(&path, &output_file_path)
+        .expect(format!("Failed to copy JSON to {:?}", output_file_path).as_str());
+}
+
 fn compile_directory(
     input_path: &Path,
     compiler: &swc::Compiler,
     options: &swc::config::Options,
     glob_sets: &GlobSetConfig,
+    tsconfig: &TsConfigJson,
 ) {
     let mut it = WalkDir::new(input_path).into_iter();
 
@@ -192,6 +223,8 @@ fn compile_directory(
             .map_or(false, |ext| ext == "ts" || ext == "tsx" || ext == "js")
         {
             compile_file(path, compiler, options, glob_sets);
+        } else if path.extension().unwrap_or_default() == "json" {
+            handle_json_file(path, options, glob_sets, tsconfig);
         }
     }
 }
@@ -236,7 +269,7 @@ pub fn transpile(opts: TranspileOptions) -> Result<(), String> {
     if input_path.is_file() {
         compile_file(input_path, &compiler, &options, &glob_sets);
     } else {
-        compile_directory(input_path, &compiler, &options, &glob_sets);
+        compile_directory(input_path, &compiler, &options, &glob_sets, &tsconfig);
     }
 
     // Rely on `tsc` to provide .d.ts files since SWC's implementation is a bit weird
