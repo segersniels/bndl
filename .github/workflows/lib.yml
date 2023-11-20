@@ -1,3 +1,5 @@
+name: Publish library crate
+
 on:
   workflow_dispatch:
     inputs:

@@ -1,3 +1,5 @@
+name: Publish binary crate
+
 on:
   workflow_dispatch:
     inputs:
