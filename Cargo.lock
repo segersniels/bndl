@@ -226,7 +226,6 @@ dependencies = [
  "bndl_deps",
  "clap",
  "env_logger",
- "globset",
  "human-panic",
  "log",
  "pathdiff",
