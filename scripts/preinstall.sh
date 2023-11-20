@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 BIN_DIR="./bin"
 BINARY=$PREINSTALL_BINARY
