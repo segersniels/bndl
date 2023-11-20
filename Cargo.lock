@@ -220,7 +220,7 @@ dependencies = [
 
 [[package]]
 name = "bndl_cli"
-version = "1.0.12"
+version = "1.0.13"
 dependencies = [
  "bndl_convert",
  "bndl_deps",
@@ -239,7 +239,7 @@ dependencies = [
 
 [[package]]
 name = "bndl_convert"
-version = "1.0.6"
+version = "1.0.7"
 dependencies = [
  "bndl_deps",
  "clap",
