@@ -6,7 +6,7 @@ use std::{env, fs, process};
 use std::{path::Path, sync::Arc};
 use swc;
 use swc_common::{SourceMap, GLOBALS};
-use walkdir::WalkDir;
+use walkdir::{DirEntry, WalkDir};
 
 use crate::utils::bundle;
 
@@ -47,8 +47,12 @@ fn create_tsc_dts(project: &Path, out_path: &Path) -> std::process::Output {
         .expect("Failed to execute command")
 }
 
-fn check_to_ignore(filename: &Path, glob_set: &GlobSet) -> bool {
-    glob_set.is_match(filename)
+fn check_to_ignore_dir(entry: &DirEntry, glob_set: &GlobSet) -> bool {
+    glob_set.is_match(entry.path()) || entry.file_name() == "node_modules"
+}
+
+fn check_to_ignore_file(file: &Path, glob_set: &GlobSet) -> bool {
+    glob_set.is_match(file)
 }
 
 /// Ensures that the source map has the correct source file name and source root
@@ -94,7 +98,7 @@ fn compile_file(
 ) {
     // Check if we should ignore the file based on the tsconfig exclude
     // We need to do this because the swc `exclude` is odd and doesn't work as expected
-    if check_to_ignore(input_path, glob_set) {
+    if check_to_ignore_file(input_path, glob_set) {
         return;
     }
 
@@ -178,7 +182,7 @@ fn compile_directory(
         };
 
         let path = entry.path();
-        if path.is_dir() && check_to_ignore(path, glob_set) {
+        if path.is_dir() && check_to_ignore_dir(&entry, glob_set) {
             it.skip_current_dir();
             continue;
         } else if path.is_symlink() {
