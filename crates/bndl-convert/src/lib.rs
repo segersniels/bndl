@@ -233,7 +233,7 @@ pub fn fetch_tsconfig(config_path: &Path) -> Result<TsConfigJson, String> {
 
     match load_and_merge_tsconfig(config_path, &packages) {
         Ok(tsconfig) => Ok(tsconfig),
-        Err(e) => Err(format!("Error parsing tsconfig.json: {}", e)),
+        Err(e) => Err(format!("Error parsing {:?}: {}", config_path, e)),
     }
 }
 
