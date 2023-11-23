@@ -25,15 +25,17 @@ pub fn bundle(app_out_path: &PathBuf) -> Result<(), String> {
 
     for (name, path) in dependencies.iter() {
         let config_path = path.join("tsconfig.json");
-        let tsconfig = bndl_convert::fetch_tsconfig(&config_path)?;
-        let out_dir = bndl_convert::determine_out_dir(&tsconfig, None);
-
-        let compiled_dependency_path = path.join(out_dir);
         let destination = app_dir.join(app_out_path).join("node_modules").join(name);
+        let source = if let Ok(ref tsconfig) = bndl_convert::fetch_tsconfig(&config_path) {
+            let out_dir = bndl_convert::determine_out_dir(tsconfig, None);
+            let compiled_dependency_path = path.join(out_dir);
 
-        // Check if we have to copy over the compiled dependency or the source code directly
-        let source: std::path::PathBuf = if compiled_dependency_path.exists() {
-            compiled_dependency_path
+            // Check if we have to copy over the compiled dependency or the source code directly
+            if compiled_dependency_path.exists() {
+                compiled_dependency_path
+            } else {
+                path.to_owned()
+            }
         } else {
             path.to_owned()
         };
