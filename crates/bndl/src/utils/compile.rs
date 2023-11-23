@@ -22,7 +22,7 @@ pub fn clean_out_dir(out_path: &Path) {
     if dir_to_delete.exists() {
         debug!("Cleaning output directory: {:?}", dir_to_delete);
         fs::remove_dir_all(&dir_to_delete)
-            .expect(format!("Failed to remove directory {:?}", dir_to_delete).as_str());
+            .unwrap_or_else(|_| panic!("Failed to remove directory {:?}", dir_to_delete));
     }
 }
 
@@ -52,7 +52,7 @@ fn check_to_ignore_dir(entry: &DirEntry, glob_sets: &GlobSetConfig) -> bool {
 
 fn check_to_ignore_file(file: &Path, glob_sets: &GlobSetConfig) -> bool {
     glob_sets.exclude.is_match(file)
-        || (glob_sets.include.len() > 0 && !glob_sets.include.is_match(file))
+        || (!glob_sets.include.is_empty() && !glob_sets.include.is_match(file))
 }
 
 /// Ensures that the source map has the correct source file name and source root
@@ -75,7 +75,8 @@ fn compile_file(
 
     // Create missing directories if they don't exist yet
     if let Some(path) = output_file_path.parent() {
-        fs::create_dir_all(path).expect(format!("Failed to create directory {:?}", path).as_str());
+        fs::create_dir_all(path)
+            .unwrap_or_else(|_| panic!("Failed to create directory {:?}", path));
     };
 
     let extended_options = swc::config::Options {
@@ -91,7 +92,7 @@ fn compile_file(
             let fm: Arc<swc_common::SourceFile> = compiler
                 .cm
                 .load_file(input_path)
-                .expect(format!("failed to load file {:?}", input_path).as_str());
+                .unwrap_or_else(|_| panic!("failed to load file {:?}", input_path));
 
             compiler.process_js_file(fm, handler, &extended_options)
         })
@@ -118,11 +119,11 @@ fn compile_file(
                     .push_str(&source_map_path.file_name().unwrap().to_string_lossy());
 
                 fs::write(&source_map_path, source_map)
-                    .expect(format!("Failed to write to {:?}", source_map_path).as_str());
+                    .unwrap_or_else(|_| panic!("Failed to write to {:?}", source_map_path));
             }
 
             fs::write(&output_file_path, &output.code)
-                .expect(format!("Failed to write to {:?}", output_file_path).as_str());
+                .unwrap_or_else(|_| panic!("Failed to write to {:?}", output_file_path));
         }
         Err(e) => {
             eprintln!("{}", e);
@@ -154,11 +155,12 @@ fn handle_json_file(
     let output_file_path = output_path.join(path);
 
     if let Some(path) = output_file_path.parent() {
-        fs::create_dir_all(path).expect(format!("Failed to create directory {:?}", path).as_str());
+        fs::create_dir_all(path)
+            .unwrap_or_else(|_| panic!("Failed to create directory {:?}", path));
     };
 
-    fs::copy(&path, &output_file_path)
-        .expect(format!("Failed to copy JSON to {:?}", output_file_path).as_str());
+    fs::copy(path, &output_file_path)
+        .unwrap_or_else(|_| panic!("Failed to copy JSON to {:?}", output_file_path));
 }
 
 fn compile_directory(

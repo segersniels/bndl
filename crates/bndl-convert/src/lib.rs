@@ -426,7 +426,7 @@ fn construct_glob_set(glob_candidates: Option<Vec<String>>) -> GlobSet {
 
             // Absolute paths can't be matched so ensure we hit all references through a general glob
             if !glob.starts_with("./") && !glob.starts_with('*') {
-                if let Some(_) = Path::new(&glob).extension() {
+                if Path::new(&glob).extension().is_some() {
                     // If the glob has an extension, we can assume it's a file
                     glob = format!("*/{glob}");
                 } else {

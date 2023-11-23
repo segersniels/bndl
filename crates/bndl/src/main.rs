@@ -57,7 +57,7 @@ fn main() {
         .get_one::<String>("project")
         .unwrap_or(&default_config);
 
-    if config_path.to_owned() == "." {
+    if *config_path == "." {
         config_path = &default_config;
     }
 
