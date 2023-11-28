@@ -27,6 +27,8 @@ pub fn bundle(app_out_path: &PathBuf) -> Result<(), String> {
         let config_path = path.join("tsconfig.json");
         let destination = app_dir.join(app_out_path).join("node_modules").join(name);
         let source = if let Ok(ref tsconfig) = bndl_convert::fetch_tsconfig(&config_path) {
+            // Don't assume all internal dependencies use the same output directory so we have to
+            // check the tsconfig.json of each dependency
             let out_dir = bndl_convert::determine_out_dir(tsconfig, None);
             let compiled_dependency_path = path.join(out_dir);
 
