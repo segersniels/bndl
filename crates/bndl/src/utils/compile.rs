@@ -228,19 +228,17 @@ fn prepare_input_path(input_path: &Path) -> PathBuf {
     input_path
 }
 
-pub fn transpile(opts: TranspileOptions) -> Result<(), String> {
+pub fn transpile(opts: TranspileOptions, tsconfig: &TsConfigJson) -> Result<(), String> {
     let input_path = prepare_input_path(&opts.input_path);
-    let tsconfig = bndl_convert::fetch_tsconfig(&opts.config_path)?;
-    let out_dir = bndl_convert::determine_out_dir(&tsconfig, Some(opts.out_dir));
 
     if opts.clean {
-        clean_out_dir(&out_dir);
+        clean_out_dir(&opts.out_dir);
     }
 
     let options = swc::config::Options {
-        output_path: Some(out_dir.clone()),
+        output_path: Some(opts.out_dir.clone()),
         swcrc: false,
-        ..bndl_convert::convert_from_tsconfig(&tsconfig, Some(opts.minify_output), None)
+        ..bndl_convert::convert_from_tsconfig(tsconfig, Some(opts.minify_output), None)
     };
 
     debug!(
@@ -249,7 +247,7 @@ pub fn transpile(opts: TranspileOptions) -> Result<(), String> {
     );
 
     // Build glob sets based on the tsconfig include & exclude
-    let glob_sets = bndl_convert::determine_include_and_exclude(&tsconfig);
+    let glob_sets = bndl_convert::determine_include_and_exclude(tsconfig);
 
     // Prepare SWC compiler
     let cm: Arc<SourceMap> = Arc::<SourceMap>::default();
@@ -258,7 +256,7 @@ pub fn transpile(opts: TranspileOptions) -> Result<(), String> {
     if input_path.is_file() && input_path.exists() {
         compile_file(&input_path, &compiler, &options, &glob_sets);
     } else {
-        compile_directory(&input_path, &compiler, &options, &glob_sets, &tsconfig);
+        compile_directory(&input_path, &compiler, &options, &glob_sets, tsconfig);
     }
 
     // Rely on `tsc` to provide .d.ts files since SWC's implementation is a bit weird
@@ -268,7 +266,7 @@ pub fn transpile(opts: TranspileOptions) -> Result<(), String> {
             let declaration_dir = if compiler_options.declarationDir.is_some() {
                 Path::new(compiler_options.declarationDir.as_ref().unwrap())
             } else {
-                out_dir.as_path()
+                opts.out_dir.as_path()
             };
 
             create_tsc_dts(&opts.config_path, declaration_dir);
@@ -277,29 +275,17 @@ pub fn transpile(opts: TranspileOptions) -> Result<(), String> {
 
     // Bundle the monorepo dependencies if the flag is set
     if opts.bundle {
-        match bundle::bundle(&out_dir) {
-            Ok(_) => {
-                debug!("Successfully bundled all dependencies");
-            }
-            Err(e) => {
-                eprintln!("{}", e);
-            }
-        }
+        bundle::bundle(&opts.out_dir)?;
     }
 
     Ok(())
 }
 
-pub fn watch(opts: TranspileOptions) -> notify::Result<()> {
+pub fn watch(opts: TranspileOptions, tsconfig: TsConfigJson) -> notify::Result<()> {
     let app_dir = env::current_dir().unwrap_or(PathBuf::from("."));
-    let out_dir = if let Ok(tsconfig) = bndl_convert::fetch_tsconfig(&opts.config_path) {
-        bndl_convert::determine_out_dir(&tsconfig, Some(opts.out_dir.clone()))
-    } else {
-        opts.out_dir.clone()
-    };
 
     // Transpile fully once before we start watching
-    if let Err(err) = transpile(opts.clone()) {
+    if let Err(err) = transpile(opts.clone(), &tsconfig) {
         eprintln!("{err}");
         process::exit(1);
     }
@@ -325,21 +311,27 @@ pub fn watch(opts: TranspileOptions) -> notify::Result<()> {
                 for path in event.paths {
                     // Ignore files that are in the output directory
                     if path.starts_with(&app_dir)
-                        && path.strip_prefix(&app_dir).unwrap().starts_with(&out_dir)
+                        && path
+                            .strip_prefix(&app_dir)
+                            .unwrap()
+                            .starts_with(&opts.out_dir)
                     {
                         debug!("Ignoring path: {:#?}", path);
                         continue;
                     }
 
                     debug!("File changed: {:?}", path);
-                    if let Err(err) = transpile(TranspileOptions {
-                        input_path: path,
-                        out_dir: out_dir.clone(),
-                        config_path: opts.config_path.clone(),
-                        minify_output: opts.minify_output,
-                        clean: false,
-                        bundle: false,
-                    }) {
+                    if let Err(err) = transpile(
+                        TranspileOptions {
+                            input_path: path,
+                            out_dir: opts.out_dir.clone(),
+                            config_path: opts.config_path.clone(),
+                            minify_output: opts.minify_output,
+                            clean: false,
+                            bundle: false,
+                        },
+                        &tsconfig,
+                    ) {
                         // Just print the error but keep watching so the user can correct his error
                         eprintln!("{err}");
                     }
