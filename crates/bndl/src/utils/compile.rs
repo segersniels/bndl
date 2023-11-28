@@ -53,6 +53,9 @@ fn check_to_ignore_dir(entry: &DirEntry, glob_sets: &GlobSetConfig) -> bool {
 fn check_to_ignore_file(file: &Path, glob_sets: &GlobSetConfig) -> bool {
     glob_sets.exclude.is_match(file)
         || (!glob_sets.include.is_empty() && !glob_sets.include.is_match(file))
+        || file
+            .extension()
+            .map_or(false, |ext| ext != "ts" && ext != "tsx" && ext != "js")
 }
 
 /// Ensures that the source map has the correct source file name and source root
