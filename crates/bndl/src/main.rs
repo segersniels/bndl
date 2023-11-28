@@ -1,7 +1,6 @@
-use std::path::PathBuf;
-
 use clap::{ArgAction, Command};
 use human_panic::setup_panic;
+use std::path::PathBuf;
 
 use crate::utils::compile::TranspileOptions;
 

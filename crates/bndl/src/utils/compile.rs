@@ -1,5 +1,5 @@
 use bndl_convert::{GlobSetConfig, SerializableOptions, TsConfigJson};
-use log::{debug, info};
+use log::debug;
 use notify::{self, RecursiveMode, Watcher};
 use std::path::PathBuf;
 use std::{env, fs, process};
@@ -211,8 +211,8 @@ pub struct TranspileOptions {
     pub bundle: bool,
 }
 
-fn prepare_input_path(input_path: &PathBuf) -> PathBuf {
-    let mut input_path: PathBuf = input_path.clone();
+fn prepare_input_path(input_path: &Path) -> PathBuf {
+    let mut input_path: PathBuf = input_path.to_path_buf();
     let app_dir = env::current_dir().unwrap_or(PathBuf::from("."));
 
     // Remove the app directory from the input path and treat it as a relative path

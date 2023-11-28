@@ -73,10 +73,10 @@ pub fn fetch_packages() -> HashMap<String, PathBuf> {
                 if path.is_dir() && check_to_ignore_dir(&entry) {
                     it.skip_current_dir();
                     continue;
-                } else if path.is_symlink() {
-                    // Don't bother following symlinks
-                    continue;
-                } else if path.is_dir() || path.file_name().unwrap_or_default() != "package.json" {
+                } else if path.is_symlink()
+                    || path.is_dir()
+                    || path.file_name().unwrap_or_default() != "package.json"
+                {
                     continue;
                 }
 
