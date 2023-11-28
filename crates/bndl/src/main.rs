@@ -45,6 +45,13 @@ fn cli() -> Command {
                 .help("Minify the output bundle")
                 .action(ArgAction::SetTrue),
         )
+        .arg(
+            clap::Arg::new("watch")
+                .short('w')
+                .long("watch")
+                .help("Experimental: watch the input files for changes and recompile when they change")
+                .action(ArgAction::SetTrue),
+        )
 }
 
 fn main() {
@@ -66,10 +73,29 @@ fn main() {
         _ => PathBuf::from("."),
     };
 
-    // Transpile the code to javascript
+    let default_out_dir = String::from("dist");
+    let out_dir = matches
+        .get_one::<String>("outDir")
+        .unwrap_or(&default_out_dir);
+
+    if matches.get_flag("watch") {
+        if let Err(err) = utils::compile::watch(TranspileOptions {
+            input_path,
+            out_dir: PathBuf::from(out_dir),
+            config_path: PathBuf::from(config_path),
+            minify_output: matches.get_flag("minify"),
+            bundle: !matches.get_flag("no-bundle"),
+            clean: false,
+        }) {
+            eprintln!("{err}");
+        }
+
+        return;
+    }
+
     if let Err(err) = utils::compile::transpile(TranspileOptions {
-        filename: input_path,
-        out_dir: matches.get_one::<String>("outDir").cloned(),
+        input_path,
+        out_dir: PathBuf::from(out_dir),
         config_path: PathBuf::from(config_path),
         minify_output: matches.get_flag("minify"),
         clean: matches.get_flag("clean"),

@@ -1,5 +1,6 @@
 use bndl_convert::{GlobSetConfig, SerializableOptions, TsConfigJson};
-use log::debug;
+use log::{debug, info};
+use notify::{self, RecursiveMode, Watcher};
 use std::path::PathBuf;
 use std::{env, fs, process};
 use std::{path::Path, sync::Arc};
@@ -202,19 +203,35 @@ fn compile_directory(
 
 #[derive(Clone)]
 pub struct TranspileOptions {
-    pub filename: PathBuf,
-    /// Overrides the internal tsconfig outDir
-    pub out_dir: Option<String>,
+    pub input_path: PathBuf,
+    pub out_dir: PathBuf,
     pub config_path: PathBuf,
     pub minify_output: bool,
     pub clean: bool,
     pub bundle: bool,
 }
 
+fn prepare_input_path(input_path: &PathBuf) -> PathBuf {
+    let mut input_path: PathBuf = input_path.clone();
+    let app_dir = env::current_dir().unwrap_or(PathBuf::from("."));
+
+    // Remove the app directory from the input path and treat it as a relative path
+    if input_path.starts_with(&app_dir) {
+        input_path = input_path.strip_prefix(&app_dir).unwrap().to_path_buf();
+    }
+
+    // Remove the leading "./" if it exists, required for SWC to work
+    if input_path.starts_with("./") && input_path != Path::new(".") {
+        input_path = input_path.strip_prefix("./").unwrap().to_path_buf();
+    }
+
+    input_path
+}
+
 pub fn transpile(opts: TranspileOptions) -> Result<(), String> {
-    let input_path = Path::new(opts.filename.to_str().unwrap().trim_start_matches("./"));
+    let input_path = prepare_input_path(&opts.input_path);
     let tsconfig = bndl_convert::fetch_tsconfig(&opts.config_path)?;
-    let out_dir = bndl_convert::determine_out_dir(&tsconfig, opts.out_dir);
+    let out_dir = bndl_convert::determine_out_dir(&tsconfig, Some(opts.out_dir));
 
     if opts.clean {
         clean_out_dir(&out_dir);
@@ -234,13 +251,14 @@ pub fn transpile(opts: TranspileOptions) -> Result<(), String> {
     // Build glob sets based on the tsconfig include & exclude
     let glob_sets = bndl_convert::determine_include_and_exclude(&tsconfig);
 
-    let cm = Arc::<SourceMap>::default();
+    // Prepare SWC compiler
+    let cm: Arc<SourceMap> = Arc::<SourceMap>::default();
     let compiler = swc::Compiler::new(cm);
 
-    if input_path.is_file() {
-        compile_file(input_path, &compiler, &options, &glob_sets);
+    if input_path.is_file() && input_path.exists() {
+        compile_file(&input_path, &compiler, &options, &glob_sets);
     } else {
-        compile_directory(input_path, &compiler, &options, &glob_sets, &tsconfig);
+        compile_directory(&input_path, &compiler, &options, &glob_sets, &tsconfig);
     }
 
     // Rely on `tsc` to provide .d.ts files since SWC's implementation is a bit weird
@@ -270,4 +288,72 @@ pub fn transpile(opts: TranspileOptions) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+pub fn watch(opts: TranspileOptions) -> notify::Result<()> {
+    let app_dir = env::current_dir().unwrap_or(PathBuf::from("."));
+    let out_dir = if let Ok(tsconfig) = bndl_convert::fetch_tsconfig(&opts.config_path) {
+        bndl_convert::determine_out_dir(&tsconfig, Some(opts.out_dir.clone()))
+    } else {
+        opts.out_dir.clone()
+    };
+
+    // Transpile fully once before we start watching
+    if let Err(err) = transpile(opts.clone()) {
+        eprintln!("{err}");
+        process::exit(1);
+    }
+
+    let input_path = opts.input_path.clone();
+    let mut watcher =
+        notify::recommended_watcher(move |res: Result<notify::Event, notify::Error>| match res {
+            Ok(event) => {
+                // Only recompile if the file was modified or created
+                if event.kind
+                    != notify::EventKind::Modify(notify::event::ModifyKind::Data(
+                        notify::event::DataChange::Content,
+                    ))
+                    && event.kind
+                        != notify::EventKind::Modify(notify::event::ModifyKind::Name(
+                            notify::event::RenameMode::To,
+                        ))
+                    && event.kind != notify::EventKind::Create(notify::event::CreateKind::File)
+                {
+                    return;
+                }
+
+                for path in event.paths {
+                    // Ignore files that are in the output directory
+                    if path.starts_with(&app_dir)
+                        && path.strip_prefix(&app_dir).unwrap().starts_with(&out_dir)
+                    {
+                        debug!("Ignoring path: {:#?}", path);
+                        continue;
+                    }
+
+                    debug!("File changed: {:?}", path);
+                    if let Err(err) = transpile(TranspileOptions {
+                        input_path: path,
+                        out_dir: out_dir.clone(),
+                        config_path: opts.config_path.clone(),
+                        minify_output: opts.minify_output,
+                        clean: false,
+                        bundle: false,
+                    }) {
+                        // Just print the error but keep watching so the user can correct his error
+                        eprintln!("{err}");
+                    }
+                }
+            }
+            Err(err) => {
+                eprintln!("{:?}", err);
+            }
+        })?;
+
+    watcher.watch(&input_path, RecursiveMode::Recursive)?;
+
+    // The watcher will run asynchronously, so we need to keep the main thread alive
+    loop {
+        std::thread::sleep(std::time::Duration::from_secs(1));
+    }
 }

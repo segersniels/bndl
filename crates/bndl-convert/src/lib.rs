@@ -2,8 +2,8 @@ use globset::{Glob, GlobSet, GlobSetBuilder};
 use log::debug;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs;
 use std::path::{Path, PathBuf};
+use std::{env, fs};
 use swc::config::{Config, ModuleConfig, Options, SourceMapsConfig};
 use swc::{
     config::{JscConfig, Paths},
@@ -403,9 +403,9 @@ pub fn convert_from_tsconfig(
 }
 
 /// Based on a given `tsconfig.json` determine the compiled output directory
-pub fn determine_out_dir(tsconfig: &TsConfigJson, override_out_dir: Option<String>) -> PathBuf {
+pub fn determine_out_dir(tsconfig: &TsConfigJson, override_out_dir: Option<PathBuf>) -> PathBuf {
     if let Some(out_dir) = override_out_dir {
-        PathBuf::from(out_dir)
+        out_dir
     } else if let Some(compiler_options) = tsconfig.clone().compilerOptions {
         PathBuf::from(&compiler_options.outDir.unwrap_or(String::from("dist")))
     } else {
@@ -415,6 +415,7 @@ pub fn determine_out_dir(tsconfig: &TsConfigJson, override_out_dir: Option<Strin
 
 fn construct_glob_set(glob_candidates: Option<Vec<String>>) -> GlobSet {
     let mut builder = GlobSetBuilder::new();
+    let app_dir = env::current_dir().unwrap_or(PathBuf::from("."));
 
     if let Some(inputs) = glob_candidates {
         for input in inputs {
@@ -428,10 +429,15 @@ fn construct_glob_set(glob_candidates: Option<Vec<String>>) -> GlobSet {
             if !glob.starts_with("./") && !glob.starts_with('*') {
                 if Path::new(&glob).extension().is_some() {
                     // If the glob has an extension, we can assume it's a file
-                    glob = format!("*/{glob}");
+                    builder.add(Glob::new(format!("*/{glob}").as_str()).unwrap());
                 } else {
                     // If the glob doesn't have an extension, we can assume it's a directory
-                    glob = format!("*/{glob}/**");
+                    builder.add(Glob::new(format!("{glob}/**").as_str()).unwrap());
+                    builder.add(Glob::new(format!("*/{glob}/**").as_str()).unwrap());
+                    builder.add(
+                        Glob::new(format!("{}/{glob}/**", app_dir.to_str().unwrap()).as_str())
+                            .unwrap(),
+                    );
                 }
             }
 
