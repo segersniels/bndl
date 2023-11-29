@@ -46,7 +46,7 @@ function download_binary() {
 # Check if we are running as root; if not, try to rerun with sudo.
 if [ "$EUID" -ne 0 ] && command -v sudo &>/dev/null; then
     exec sudo -- "$0" "$@"
-    exit $?
+    exit 0
 fi
 
 determine_platform_binary
