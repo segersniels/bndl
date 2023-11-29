@@ -31,18 +31,23 @@ function download_binary() {
     echo "Downloading ${PLATFORM_BINARY}..."
 
     if which wget >/dev/null ; then
-        sudo wget --quiet -O $path $url
+        wget --quiet -O $path $url
     elif which curl >/dev/null ; then
-        sudo curl -s -L $url -o $path
+        curl -s -L $url -o $path
     else
         echo "Unable to download, neither `wget` nor `curl` are available."
     fi
 
-    sudo chmod +x $path
+    chmod +x $path
 
     echo "Installed at ${path}"
 }
 
-sudo -v
+# Check if we are running as root; if not, try to rerun with sudo.
+if [ "$EUID" -ne 0 ] && command -v sudo &>/dev/null; then
+    exec sudo -- "$0" "$@"
+    exit $?
+fi
+
 determine_platform_binary
 download_binary
