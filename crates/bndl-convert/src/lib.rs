@@ -274,7 +274,13 @@ fn convert_module(module: &Option<String>) -> Option<swc::config::ModuleConfig> 
 }
 
 fn determine_base_url(base_url: Option<String>) -> PathBuf {
-    PathBuf::from(base_url.unwrap_or_default().trim_start_matches("./"))
+    if base_url.is_none() {
+        return PathBuf::from("");
+    }
+
+    let current_dir = env::current_dir().unwrap_or_default();
+
+    current_dir.join(base_url.unwrap().trim_start_matches("./"))
 }
 
 fn determine_paths(base_url: &Path, paths: Option<Paths>) -> Paths {
