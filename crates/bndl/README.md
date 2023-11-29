@@ -13,15 +13,31 @@ It aims to be a near drop in replacement for people already accustomed to `tsc` 
 
 The result? A `dist` that contains everything for your app to run. Simply copy the `dist` over to a Docker image and run it. Read more about it [here](https://niels.foo/post/typescript-monorepo-bundling-for-dummies).
 
-## Usage
+## Installing
+
+### cargo
 
 ```bash
-$ cargo +nightly install bndl_cli # or npm install -g bndl-cli
-$ bndl --clean --outDir dist --project tsconfig.json --minify
+$ cargo +nightly install bndl_cli
 ```
 
-If you don't want to deal with the overhead and want to keep your transition from `tsc` to a bundled setup as simple as possible, `bndl` might be the tool for you.
-But I would still see `bndl` as a last resort if you can't get the more popular (and probably better maintained) tools like `tsup` or `webpack` running in your monorepo.
+### npm
+
+```bash
+$ npm install -g bndl-cli
+```
+
+### curl
+
+```bash
+$ sh -c "$(curl -fsSL https://raw.githubusercontent.com/segersniels/bndl/master/scripts/install.sh)"
+```
+
+### wget
+
+```bash
+$ sh -c "$(wget https://raw.githubusercontent.com/segersniels/bndl/master/scripts/install.sh -O -)"
+```
 
 ## Contributing
 
