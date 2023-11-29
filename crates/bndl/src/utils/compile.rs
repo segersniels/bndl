@@ -1,6 +1,7 @@
 use bndl_convert::{GlobSetConfig, SerializableOptions, TsConfigJson};
 use log::debug;
 use notify::{self, RecursiveMode, Watcher};
+use rayon::prelude::*;
 use std::path::PathBuf;
 use std::{env, fs, process};
 use std::{path::Path, sync::Arc};
@@ -174,6 +175,7 @@ fn compile_directory(
     glob_sets: &GlobSetConfig,
     tsconfig: &TsConfigJson,
 ) {
+    let mut paths = Vec::new();
     let mut it = WalkDir::new(input_path).into_iter();
 
     loop {
@@ -194,11 +196,18 @@ fn compile_directory(
             .extension()
             .map_or(false, |ext| ext == "ts" || ext == "tsx" || ext == "js")
         {
-            compile_file(path, compiler, options, glob_sets);
+            // Keep track of this path for compiling
+            paths.push(path.to_path_buf());
         } else if path.extension().unwrap_or_default() == "json" {
+            // Handle JSON files separately
             handle_json_file(path, options, glob_sets, tsconfig);
         }
     }
+
+    // Compile all the files we found in parallel
+    paths
+        .par_iter()
+        .for_each(|path| compile_file(&path, compiler, options, glob_sets));
 }
 
 #[derive(Clone)]
