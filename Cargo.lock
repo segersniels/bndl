@@ -230,6 +230,7 @@ dependencies = [
  "log",
  "notify",
  "pathdiff",
+ "rayon",
  "serde",
  "serde_json",
  "sourcemap 7.0.1",
