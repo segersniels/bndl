@@ -294,6 +294,8 @@ pub fn watch(opts: TranspileOptions, tsconfig: TsConfigJson) -> notify::Result<(
     let mut watcher =
         notify::recommended_watcher(move |res: Result<notify::Event, notify::Error>| match res {
             Ok(event) => {
+                debug!("Incoming event: {:#?}", event);
+
                 // Only recompile if the file was modified or created
                 if event.kind
                     != notify::EventKind::Modify(notify::event::ModifyKind::Data(
