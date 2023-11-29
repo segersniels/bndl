@@ -308,7 +308,9 @@ pub fn watch(opts: TranspileOptions, tsconfig: TsConfigJson) -> notify::Result<(
                     return;
                 }
 
-                for path in event.paths {
+                for mut path in event.paths {
+                    path = path.canonicalize().unwrap_or(path);
+
                     // Ignore files that are in the output directory
                     if path.starts_with(&app_dir)
                         && path
