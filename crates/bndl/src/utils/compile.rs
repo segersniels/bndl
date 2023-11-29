@@ -281,6 +281,14 @@ pub fn transpile(opts: TranspileOptions, tsconfig: &TsConfigJson) -> Result<(), 
     Ok(())
 }
 
+fn check_to_ignore_watch_event(event: &notify::Event) -> bool {
+    if !event.kind.is_modify() && event.kind.is_create() {
+        return true;
+    }
+
+    return false;
+}
+
 pub fn watch(opts: TranspileOptions, tsconfig: TsConfigJson) -> notify::Result<()> {
     let app_dir = env::current_dir().unwrap_or(PathBuf::from("."));
 
@@ -297,16 +305,7 @@ pub fn watch(opts: TranspileOptions, tsconfig: TsConfigJson) -> notify::Result<(
                 debug!("Incoming event: {:#?}", event);
 
                 // Only recompile if the file was modified or created
-                if event.kind
-                    != notify::EventKind::Modify(notify::event::ModifyKind::Data(
-                        notify::event::DataChange::Content,
-                    ))
-                    && event.kind
-                        != notify::EventKind::Modify(notify::event::ModifyKind::Name(
-                            notify::event::RenameMode::To,
-                        ))
-                    && event.kind != notify::EventKind::Create(notify::event::CreateKind::File)
-                {
+                if check_to_ignore_watch_event(&event) {
                     return;
                 }
 
