@@ -1,4 +1,5 @@
 use log::debug;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::{env, io};
@@ -23,7 +24,7 @@ pub fn bundle(app_out_path: &PathBuf) -> Result<(), String> {
     let dependencies: std::collections::HashMap<String, std::path::PathBuf> =
         bndl_deps::fetch_used_dependencies();
 
-    for (name, path) in dependencies.iter() {
+    dependencies.into_par_iter().for_each(|(name, path)| {
         let config_path = path.join("tsconfig.json");
         let destination = app_dir.join(app_out_path).join("node_modules").join(name);
         let source = if let Ok(ref tsconfig) = bndl_convert::fetch_tsconfig(&config_path) {
@@ -46,7 +47,7 @@ pub fn bundle(app_out_path: &PathBuf) -> Result<(), String> {
 
         copy_dir_all(&source, &destination)
             .unwrap_or_else(|_| panic!("Unable to copy {:?} to {:?}", source, destination));
-    }
+    });
 
     Ok(())
 }
