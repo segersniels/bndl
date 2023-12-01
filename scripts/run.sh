@@ -8,10 +8,10 @@ fi
 
 case $PLATFORM in
 Linux)
-    if [[ $(uname -m) == "aarch64" ]]; then
-    PLATFORM_BINARY="${BINARY}-aarch64-linux"
+    if [ $(uname -m) = "aarch64" ]; then
+        PLATFORM_BINARY="${BINARY}-aarch64-linux"
     else
-    PLATFORM_BINARY="${BINARY}-amd64-linux"
+        PLATFORM_BINARY="${BINARY}-amd64-linux"
     fi
     ;;
 Darwin)
