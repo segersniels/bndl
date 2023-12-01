@@ -117,6 +117,7 @@ fn main() {
             tsconfig,
         ) {
             eprintln!("{err}");
+            process::exit(1)
         }
 
         return;
@@ -135,5 +136,6 @@ fn main() {
         &tsconfig,
     ) {
         eprintln!("{err}");
+        process::exit(1)
     }
 }
