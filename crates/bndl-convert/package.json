@@ -4,10 +4,10 @@
   "description": "Convert a tsconfig.json to an SWC compatible config",
   "files": [
     "bin",
-    "scripts/preinstall.js"
+    "scripts/run.sh"
   ],
   "bin": {
-    "bndl-convert": "./bin/bndl-convert"
+    "bndl-convert": "BINARY=bndl-convert ./scripts/run.sh"
   },
   "scripts": {
     "preinstall": "PREINSTALL_BINARY=bndl-convert node scripts/preinstall.js"
