@@ -32,9 +32,15 @@ fn cli() -> Command {
                 .action(ArgAction::SetTrue),
         )
         .arg(
+            clap::Arg::new("only-bundle")
+                .long("only-bundle")
+                .help("Skips compilation and only bundles the input files, assuming they are already compiled beforehand")
+                .action(ArgAction::SetTrue),
+        )
+        .arg(
             clap::Arg::new("no-bundle")
                 .long("no-bundle")
-                .help("Disable automatic bundling of internal  monorepo dependencies")
+                .help("Disable automatic bundling of internal monorepo dependencies")
                 .action(ArgAction::SetTrue),
         )
         .arg(
@@ -87,6 +93,15 @@ fn main() {
     // Determine the output path (give priority to the optional flag)
     let override_out_dir = matches.get_one::<String>("outDir").map(PathBuf::from);
     let out_dir = bndl_convert::determine_out_dir(&tsconfig, override_out_dir);
+
+    // If requested, only bundle the internal dependencies
+    if matches.get_flag("only-bundle") {
+        if let Err(err) = utils::bundle::bundle(&out_dir) {
+            eprintln!("{err}");
+        }
+
+        return;
+    }
 
     // If the watch flag is set, watch the input files for changes and recompile when they change
     if matches.get_flag("watch") {
