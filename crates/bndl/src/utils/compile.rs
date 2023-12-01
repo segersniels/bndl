@@ -132,7 +132,6 @@ fn compile_file(
         }
         Err(e) => {
             eprintln!("{}", e);
-            process::exit(1);
         }
     }
 }
