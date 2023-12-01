@@ -294,6 +294,15 @@ fn check_to_ignore_watch_event(event: &notify::Event) -> bool {
         return true;
     }
 
+    // Not interested in metadata events
+    if event.kind
+        == notify::EventKind::Modify(notify::event::ModifyKind::Metadata(
+            notify::event::MetadataKind::Any,
+        ))
+    {
+        return true;
+    }
+
     return false;
 }
 
