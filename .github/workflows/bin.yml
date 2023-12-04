@@ -139,8 +139,10 @@ jobs:
         with:
           name: bin
           path: crates/${{ inputs.crate }}/bin
-      - name: Ensure preinstall script is in place
+      - name: Ensure run script is in place
         run: cp -R scripts crates/${{ inputs.crate }}/scripts
+      - name: Ensure run script points to correct binary
+        run: sed -i 's/__REPLACE__/${{ inputs.crate }}/g' crates/${{ inputs.crate }}/scripts/run.sh
       - name: Publish to NPM
         run: |
           npm version ${{ needs.lint.outputs.current_version }} --no-git-tag-version --no-commit-hooks --allow-same-version

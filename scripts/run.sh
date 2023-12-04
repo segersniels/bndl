@@ -1,5 +1,6 @@
 #!/bin/sh
 
+BINARY=__REPLACE__
 PLATFORM=$(uname)
 
 if [ -z "$BINARY" ]; then

@@ -7,7 +7,7 @@
     "scripts/run.sh"
   ],
   "bin": {
-    "bndl-convert": "BINARY=bndl-convert ./scripts/run.sh"
+    "bndl-convert": "./scripts/run.sh"
   },
   "author": "Niels Segers",
   "license": "ISC",
