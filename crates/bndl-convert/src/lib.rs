@@ -355,6 +355,7 @@ fn convert_impl(
                 },
                 ..Default::default()
             },
+            swcrc: true, // Needs to be forced to true since it otherwise defaults to `false`
             ..Default::default()
         }
     } else {
