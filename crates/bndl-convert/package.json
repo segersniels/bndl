@@ -9,9 +9,6 @@
   "bin": {
     "bndl-convert": "BINARY=bndl-convert ./scripts/run.sh"
   },
-  "scripts": {
-    "preinstall": "PREINSTALL_BINARY=bndl-convert node scripts/preinstall.js"
-  },
   "author": "Niels Segers",
   "license": "ISC",
   "homepage": "https://github.com/segersniels/bndl#readme",
