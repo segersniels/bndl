@@ -17,9 +17,6 @@ concurrency:
 jobs:
   lint:
     runs-on: ubuntu-latest
-    outputs:
-      current_version: ${{ steps.current_version.outputs.version }}
-      package_name: ${{ steps.package_name.outputs.name }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
@@ -29,17 +26,9 @@ jobs:
           toolchain: stable
       - name: Run Clippy
         run: cargo clippy --all-targets --all-features
-      - name: Get current package name
-        id: package_name
-        run: echo "name=$(make name)" >> $GITHUB_OUTPUT
-        working-directory: crates/${{ inputs.crate }}
-      - name: Get current package version
-        id: current_version
-        run: echo "version=$(make version)" >> $GITHUB_OUTPUT
-        working-directory: crates/${{ inputs.crate }}
 
   cargo:
-    needs: lint
+    needs: [lint, deps]
     environment: production
     runs-on: ubuntu-latest
     steps:
@@ -47,11 +36,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - name: Get current package name
-        id: package_name
-        run: echo "name=$(make name)" >> $GITHUB_OUTPUT
-        working-directory: crates/${{ inputs.crate }}
       - name: Publish to Cargo
-        run: cargo publish --allow-dirty --package ${{ needs.lint.outputs.package_name }} || true
+        run: cargo publish --allow-dirty --package ${{ inputs.crate }} || true
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
