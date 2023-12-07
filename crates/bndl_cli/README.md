@@ -18,7 +18,7 @@ The result? A `dist` that contains everything for your app to run. Simply copy t
 ### cargo
 
 ```bash
-$ cargo +nightly install bndl_cli
+$ cargo install bndl_cli
 ```
 
 ### npm

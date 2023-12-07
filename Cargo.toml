@@ -1,9 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
-  "crates/bndl",
-  "crates/bndl-convert",
-  "crates/bndl-deps",
+  "crates/bndl_cli",
+  "crates/bndl_convert",
+  "crates/bndl_deps",
 ]
 
 [profile.release]

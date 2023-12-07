@@ -1,1 +1,1 @@
-./crates/bndl/README.md
+./crates/bndl_cli/README.md

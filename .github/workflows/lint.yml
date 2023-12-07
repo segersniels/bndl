@@ -19,6 +19,6 @@ jobs:
         with:
           profile: minimal
           components: clippy
-          toolchain: nightly
+          toolchain: stable
       - name: Run Clippy
         run: cargo clippy --all-targets --all-features

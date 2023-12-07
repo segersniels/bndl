@@ -1,5 +1,3 @@
-cargo-features = ["different-binary-name"]
-
 [package]
 name = "bndl_convert"
 version = "1.1.4"
@@ -16,11 +14,11 @@ repository = "https://github.com/segersniels/bndl/"
 name = "bndl_convert"
 
 [[bin]]
-name = "bndl_convert"
-filename = "bndl-convert"
+name = "bndl-convert"
+path = "src/main.rs"
 
 [dependencies]
-bndl_deps = { version = "1.0.2", path = "../bndl-deps" }
+bndl_deps = { version = "1.0.2", path = "../bndl_deps" }
 clap = "4.4.8"
 env_logger = "0.10.1"
 globset = "0.4.13"

@@ -8,7 +8,7 @@ on:
         required: true
         type: choice
         options:
-          - bndl-deps
+          - bndl_deps
 
 concurrency:
   group: publish-${{ inputs.crate }}-${{ github.ref }}
@@ -26,7 +26,7 @@ jobs:
         with:
           profile: minimal
           components: clippy
-          toolchain: nightly
+          toolchain: stable
       - name: Run Clippy
         run: cargo clippy --all-targets --all-features
       - name: Get current package name

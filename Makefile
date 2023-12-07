@@ -21,4 +21,4 @@ version:
 	@cargo pkgid | sed 's/.*[#@]\(.*\)/\1/'
 
 name:
-	@cargo pkgid | sed 's/.*#\(.*\)@.*/\1/'
+	@cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select( .name == "bndl_convert") | .targets[] | select( .kind | map(. == "bin") | any ) | .name'

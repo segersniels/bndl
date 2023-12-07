@@ -8,8 +8,8 @@ on:
         required: true
         type: choice
         options:
-          - bndl
-          - bndl-convert
+          - bndl_cli
+          - bndl_convert
 
 concurrency:
   group: publish-${{ inputs.crate }}-${{ github.ref }}
@@ -18,29 +18,39 @@ concurrency:
 jobs:
   lint:
     runs-on: ubuntu-latest
-    outputs:
-      current_version: ${{ steps.current_version.outputs.version }}
-      package_name: ${{ steps.package_name.outputs.name }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           components: clippy
-          toolchain: nightly
+          toolchain: stable
       - name: Run Clippy
         run: cargo clippy --all-targets --all-features
-      - name: Get current package name
-        id: package_name
-        run: echo "name=$(make name)" >> $GITHUB_OUTPUT
         working-directory: crates/${{ inputs.crate }}
+
+  deps:
+    runs-on: ubuntu-latest
+    outputs:
+      current_version: ${{ steps.current_version.outputs.version }}
+      binary_name: ${{ steps.binary.outputs.name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          components: clippy
+          toolchain: stable
       - name: Get current package version
         id: current_version
         run: echo "version=$(make version)" >> $GITHUB_OUTPUT
         working-directory: crates/${{ inputs.crate }}
+      - name: Get binary name
+        id: binary
+        run: echo "name=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select( .name == "${{ inputs.crate }}") | .targets[] | select( .kind | map(. == "bin") | any ) | .name')" >> $GITHUB_OUTPUT
 
   build:
-    needs: lint
+    needs: [lint, deps]
     strategy:
       fail-fast: false
       matrix:
@@ -66,20 +76,18 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           use-cross: true
-          args: --release --target=${{ matrix.job.target }} --locked --package ${{ needs.lint.outputs.package_name }}
+          args: --release --target=${{ matrix.job.target }} --locked --package ${{ inputs.crate }}
           command: build
       - name: Rename result
-        run: |
-          rm target/${{ matrix.job.target }}/release/${{ inputs.crate }}.d
-          cp target/${{ matrix.job.target }}/release/${{ inputs.crate }} ${{ inputs.crate }}-${{ matrix.job.exe }}
+        run: cp target/${{ matrix.job.target }}/release/${{ needs.deps.outputs.binary_name }} ${{ needs.deps.outputs.binary_name }}-${{ matrix.job.exe }}
       - name: Archive production artifacts
         uses: actions/upload-artifact@v3
         with:
           name: bin
-          path: ${{ inputs.crate }}-${{ matrix.job.exe }}
+          path: ${{ needs.deps.outputs.binary_name }}-${{ matrix.job.exe }}
 
   release:
-    needs: [lint, build]
+    needs: [deps, build]
     environment: production
     runs-on: ubuntu-latest
     outputs:
@@ -93,42 +101,39 @@ jobs:
       - uses: mukunku/tag-exists-action@v1.4.0
         id: check_tag
         with:
-          tag: "${{ needs.lint.outputs.current_version }}"
+          tag: "${{ needs.deps.outputs.current_version }}"
       - uses: "marvinpinto/action-automatic-releases@latest"
-        if: steps.check_tag.outputs.exists == 'false' && inputs.crate == 'bndl'
+        if: steps.check_tag.outputs.exists == 'false' && inputs.crate == 'bndl_cli'
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "${{ needs.lint.outputs.current_version }}"
+          automatic_release_tag: "${{ needs.deps.outputs.current_version }}"
           prerelease: false
           files: |
-            ./crates/${{ inputs.crate }}/bin/${{ inputs.crate }}-macos
-            ./crates/${{ inputs.crate }}/bin/${{ inputs.crate }}-aarch64-linux
-            ./crates/${{ inputs.crate }}/bin/${{ inputs.crate }}-amd64-linux
+            ./crates/${{ inputs.crate }}/bin/${{ needs.deps.outputs.binary_name }}-macos
+            ./crates/${{ inputs.crate }}/bin/${{ needs.deps.outputs.binary_name }}-aarch64-linux
+            ./crates/${{ inputs.crate }}/bin/${{ needs.deps.outputs.binary_name }}-amd64-linux
 
   cargo:
     needs: release
     environment: production
     runs-on: ubuntu-latest
-    if: inputs.crate != 'bndl' || (inputs.crate == 'bndl' && needs.release.outputs.tag_exists == 'false')
+    if: inputs.crate != 'bndl_cli' || (inputs.crate == 'bndl_cli' && needs.release.outputs.tag_exists == 'false')
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - name: Get current package name
-        id: package_name
-        run: echo "name=$(make name)" >> $GITHUB_OUTPUT
         working-directory: crates/${{ inputs.crate }}
       - name: Publish to Cargo
-        run: cargo publish --allow-dirty --package ${{ steps.package_name.outputs.name }} || true
+        run: cargo publish --allow-dirty --package ${{ inputs.crate }} || true
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
   npm:
-    needs: [lint, release, cargo]
+    needs: [deps, release, cargo]
     environment: production
     runs-on: ubuntu-latest
-    if: inputs.crate != 'bndl' || (inputs.crate == 'bndl' && needs.release.outputs.tag_exists == 'false')
+    if: inputs.crate != 'bndl_cli' || (inputs.crate == 'bndl_cli' && needs.release.outputs.tag_exists == 'false')
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v3
@@ -142,7 +147,7 @@ jobs:
       - name: Ensure run script is in place
         run: cp -R scripts crates/${{ inputs.crate }}/scripts
       - name: Ensure run script points to correct binary
-        run: sed -i 's/__REPLACE__/${{ inputs.crate }}/' crates/${{ inputs.crate }}/scripts/run.sh
+        run: sed -i 's/__REPLACE__/${{ needs.deps.outputs.binary_name }}/' crates/${{ needs.deps.outputs.binary_name }}/scripts/run.sh
       - name: Publish to NPM
         run: |
           npm version ${{ needs.lint.outputs.current_version }} --no-git-tag-version --no-commit-hooks --allow-same-version
