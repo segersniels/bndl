@@ -10,6 +10,7 @@ use swc::{
     BoolConfig,
 };
 use swc_ecma_parser::{Syntax, TsConfig};
+use swc_ecma_transforms_module::{amd, common_js, umd};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct CompilerOptions {
@@ -26,6 +27,7 @@ pub struct CompilerOptions {
     pub outDir: Option<String>,
     pub removeComments: Option<bool>,
     pub resolveJsonModule: Option<bool>,
+    pub esModuleInterop: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -143,6 +145,9 @@ fn merge_compiler_options(
                 resolveJsonModule: child_options
                     .resolveJsonModule
                     .or(base_options.resolveJsonModule),
+                esModuleInterop: child_options
+                    .esModuleInterop
+                    .or(base_options.esModuleInterop),
             })
         } else {
             // Child is not a valid config, return the base and don't bother merging
@@ -256,16 +261,46 @@ fn convert_target_to_es_version(target: &Option<String>) -> Option<swc_ecma_ast:
     })
 }
 
-fn convert_module(module: &Option<String>) -> Option<swc::config::ModuleConfig> {
+fn convert_module(
+    module: Option<String>,
+    es_module_interop: Option<bool>,
+) -> Option<swc::config::ModuleConfig> {
     Some(match module {
         Some(module) => match module.to_lowercase().as_str() {
-            "amd" => swc::config::ModuleConfig::Amd(Default::default()),
-            "commonjs" => swc::config::ModuleConfig::CommonJs(Default::default()),
+            "amd" => swc::config::ModuleConfig::Amd(amd::Config {
+                config: common_js::Config {
+                    no_interop: if let Some(interop) = es_module_interop {
+                        !interop
+                    } else {
+                        false
+                    },
+                    ..Default::default()
+                },
+                ..Default::default()
+            }),
+            "commonjs" => swc::config::ModuleConfig::CommonJs(common_js::Config {
+                no_interop: if let Some(interop) = es_module_interop {
+                    !interop
+                } else {
+                    false
+                },
+                ..Default::default()
+            }),
             "cjs" => swc::config::ModuleConfig::CommonJs(Default::default()),
             "es6" => swc::config::ModuleConfig::Es6(Default::default()),
             "es2015" => swc::config::ModuleConfig::Es6(Default::default()),
             "nodenext" => swc::config::ModuleConfig::NodeNext(Default::default()),
-            "umd" => swc::config::ModuleConfig::Umd(Default::default()),
+            "umd" => swc::config::ModuleConfig::Umd(umd::Config {
+                config: common_js::Config {
+                    no_interop: if let Some(interop) = es_module_interop {
+                        !interop
+                    } else {
+                        false
+                    },
+                    ..Default::default()
+                },
+                ..Default::default()
+            }),
             "system" => swc::config::ModuleConfig::SystemJs(Default::default()),
             _ => swc::config::ModuleConfig::CommonJs(Default::default()),
         },
@@ -318,7 +353,7 @@ fn convert_impl(
             },
             config: swc::config::Config {
                 minify: BoolConfig::from(minify_output),
-                module: convert_module(&compiler_options.module),
+                module: convert_module(compiler_options.module, compiler_options.esModuleInterop),
                 inline_sources_content: BoolConfig::from(inline_sources_content),
                 source_maps: if inline_source_map {
                     Some(swc::config::SourceMapsConfig::Str(String::from("inline")))
