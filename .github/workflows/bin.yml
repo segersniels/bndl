@@ -102,16 +102,16 @@ jobs:
         id: check_tag
         with:
           tag: "${{ needs.deps.outputs.current_version }}"
-      - uses: "marvinpinto/action-automatic-releases@latest"
-        if: steps.check_tag.outputs.exists == 'false' && inputs.crate == 'bndl_cli'
-        with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "${{ needs.deps.outputs.current_version }}"
-          prerelease: false
-          files: |
-            ./crates/${{ inputs.crate }}/bin/${{ needs.deps.outputs.binary_name }}-macos
-            ./crates/${{ inputs.crate }}/bin/${{ needs.deps.outputs.binary_name }}-aarch64-linux
-            ./crates/${{ inputs.crate }}/bin/${{ needs.deps.outputs.binary_name }}-amd64-linux
+      # - uses: "marvinpinto/action-automatic-releases@latest"
+      #   if: steps.check_tag.outputs.exists == 'false' && inputs.crate == 'bndl_cli'
+      #   with:
+      #     repo_token: "${{ secrets.GITHUB_TOKEN }}"
+      #     automatic_release_tag: "${{ needs.deps.outputs.current_version }}"
+      #     prerelease: false
+      #     files: |
+      #       ./crates/${{ inputs.crate }}/bin/${{ needs.deps.outputs.binary_name }}-macos
+      #       ./crates/${{ inputs.crate }}/bin/${{ needs.deps.outputs.binary_name }}-aarch64-linux
+      #       ./crates/${{ inputs.crate }}/bin/${{ needs.deps.outputs.binary_name }}-amd64-linux
 
   cargo:
     needs: release
@@ -125,7 +125,7 @@ jobs:
           toolchain: stable
         working-directory: crates/${{ inputs.crate }}
       - name: Publish to Cargo
-        run: cargo publish --allow-dirty --package ${{ inputs.crate }} || true
+        run: cargo publish --allow-dirty --package ${{ inputs.crate }} --dry-run || true
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
@@ -151,7 +151,7 @@ jobs:
       - name: Publish to NPM
         run: |
           npm version ${{ needs.lint.outputs.current_version }} --no-git-tag-version --no-commit-hooks --allow-same-version
-          npm publish || true
+          npm publish --dry-run || true
         working-directory: crates/${{ inputs.crate }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
