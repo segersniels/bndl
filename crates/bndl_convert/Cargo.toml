@@ -29,3 +29,4 @@ swc = "0.269.47"
 swc_common = { version = "0.33.8", features = ["tty-emitter"] }
 swc_ecma_ast = "0.110.9"
 swc_ecma_parser = "0.141.21"
+swc_ecma_transforms_module = "0.177.66"
