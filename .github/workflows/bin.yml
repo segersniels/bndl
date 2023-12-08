@@ -149,7 +149,7 @@ jobs:
         run: sed -i 's/__REPLACE__/${{ needs.deps.outputs.binary_name }}/' crates/${{ inputs.crate }}/scripts/run.sh
       - name: Publish to NPM
         run: |
-          npm version ${{ needs.lint.outputs.current_version }} --no-git-tag-version --no-commit-hooks --allow-same-version
+          npm version ${{ needs.deps.outputs.current_version }} --no-git-tag-version --no-commit-hooks --allow-same-version
           npm publish || true
         working-directory: crates/${{ inputs.crate }}
         env:
