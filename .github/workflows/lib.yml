@@ -28,7 +28,7 @@ jobs:
         run: cargo clippy --all-targets --all-features
 
   cargo:
-    needs: [lint, deps]
+    needs: lint
     environment: production
     runs-on: ubuntu-latest
     steps:
