@@ -65,7 +65,10 @@ pub fn fetch_packages() -> HashMap<String, PathBuf> {
             loop {
                 let entry = match it.next() {
                     None => break,
-                    Some(Err(err)) => panic!("ERROR: {}", err),
+                    Some(Err(err)) => {
+                        debug!("Error while walking directory: {:?}", err);
+                        continue;
+                    }
                     Some(Ok(entry)) => entry,
                 };
 
