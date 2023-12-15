@@ -1,6 +1,6 @@
 [package]
 name = "bndl_convert"
-version = "1.2.0"
+version = "1.2.1"
 description = "Convert a tsconfig.json to an SWC compatible config"
 authors = ["Niels Segers <contact@niels.foo>"]
 edition = "2021"
@@ -18,7 +18,7 @@ name = "bndl-convert"
 path = "src/main.rs"
 
 [dependencies]
-bndl_deps = { version = "1.0.2", path = "../bndl_deps" }
+bndl_deps = { version = "1.0.3", path = "../bndl_deps" }
 clap = "4.4.8"
 env_logger = "0.10.1"
 globset = "0.4.13"
