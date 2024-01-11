@@ -292,7 +292,7 @@ pub fn transpile(opts: TranspileOptions, tsconfig: &TsConfigJson) -> Result<(), 
 }
 
 fn check_to_ignore_watch_event(event: &notify::Event) -> bool {
-    if !event.kind.is_modify() && event.kind.is_create() {
+    if !event.kind.is_modify() && !event.kind.is_create() {
         return true;
     }
 
