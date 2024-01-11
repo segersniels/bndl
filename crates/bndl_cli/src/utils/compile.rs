@@ -94,12 +94,11 @@ fn compile_file(
 
     let transform_output = GLOBALS.set(&Default::default(), || {
         swc::try_with_handler(compiler.cm.clone(), Default::default(), |handler| {
-            let fm: Arc<swc_common::SourceFile> = compiler
+            compiler
                 .cm
                 .load_file(input_path)
-                .unwrap_or_else(|_| panic!("failed to load file {:?}", input_path));
-
-            compiler.process_js_file(fm, handler, &extended_options)
+                .map_err(Into::into)
+                .and_then(|fm| compiler.process_js_file(fm, handler, &extended_options))
         })
     });
 
