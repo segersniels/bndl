@@ -39,8 +39,6 @@ pub fn bundle(app_out_path: &PathBuf) -> Result<(), String> {
                 let out_dir = bndl_convert::determine_out_dir(tsconfig, None);
                 let compiled_dependency_path = path.join(out_dir);
 
-                println!("Compiled dependency path: {:?}", compiled_dependency_path);
-
                 // Check if we have to copy over the compiled dependency or the source code directly
                 if compiled_dependency_path.exists() {
                     compiled_dependency_path
@@ -49,7 +47,7 @@ pub fn bundle(app_out_path: &PathBuf) -> Result<(), String> {
                 }
             }
             Err(err) => {
-                println!("{err} for {:#?}", path);
+                debug!("{err} for {:#?}", path);
                 path.to_owned()
             }
         };
