@@ -5,10 +5,29 @@ use std::path::Path;
 use std::{collections::HashMap, env, path::PathBuf};
 use walkdir::{DirEntry, WalkDir};
 
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct YarnConfig {
+    pub packages: Vec<String>,
+    pub nohoist: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum WorkspacesConfig {
+    Npm(Vec<String>),
+    Yarn(YarnConfig),
+}
+
+impl Default for WorkspacesConfig {
+    fn default() -> Self {
+        WorkspacesConfig::Npm(Vec::new())
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 struct PackageJson {
     pub name: String,
-    pub workspaces: Option<Vec<String>>,
+    pub workspaces: Option<WorkspacesConfig>,
     pub dependencies: Option<HashMap<String, String>>,
 }
 
@@ -22,7 +41,10 @@ fn fetch_package_json(path: &Path) -> PackageJson {
 
     match serde_json::from_str(&package_json_str) {
         Ok(package_json) => package_json,
-        Err(_) => PackageJson::default(),
+        Err(err) => {
+            debug!("{err} for {:#?}", path);
+            PackageJson::default()
+        }
     }
 }
 
@@ -91,7 +113,10 @@ pub fn fetch_packages() -> HashMap<String, PathBuf> {
 
             packages
         }
-        Err(_) => HashMap::new(),
+        Err(err) => {
+            debug!("{err}");
+            HashMap::new()
+        }
     }
 }
 
