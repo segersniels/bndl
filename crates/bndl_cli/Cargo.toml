@@ -1,6 +1,6 @@
 [package]
 name = "bndl_cli"
-version = "1.5.5"
+version = "1.5.6"
 description = "A basic TypeScript transpiling and bundling tool for (primarily backend) monorepos"
 authors = ["Niels Segers <contact@niels.foo>"]
 edition = "2021"
@@ -16,7 +16,7 @@ path = "src/main.rs"
 
 [dependencies]
 bndl_deps = { version = "1.0.4", path = "../bndl_deps" }
-bndl_convert = { version = "1.2.2", path = "../bndl_convert" }
+bndl_convert = { version = "1.2.3", path = "../bndl_convert" }
 clap = "4.4.8"
 env_logger = "0.10.1"
 human-panic = "1.2.2"
