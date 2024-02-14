@@ -17,6 +17,13 @@ fn cli() -> Command {
                 .help("Minify the output bundle")
                 .action(ArgAction::SetTrue),
         )
+        .arg(
+            clap::Arg::new("save")
+                .short('s')
+                .long("save")
+                .help("Save the generated .swcrc to the current directory")
+                .action(ArgAction::SetTrue),
+        )
 }
 
 fn remove_unwanted_values(value: &mut Value) -> Value {
@@ -81,6 +88,7 @@ fn main() {
 
     let matches = cli().get_matches();
     let minify_output = matches.get_flag("minify");
+    let should_save = matches.get_flag("save");
     let filename = match matches.subcommand() {
         Some((query, _)) => query,
         _ => "tsconfig.json",
@@ -89,11 +97,18 @@ fn main() {
     match bndl_convert::convert_from_path(&PathBuf::from(filename), Some(minify_output), None) {
         Ok(options) => {
             let cleaned_options = parse_options_before_logging(&options);
+            let config = serde_json::to_string_pretty(&cleaned_options).unwrap();
 
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&cleaned_options).unwrap()
-            );
+            if should_save {
+                let output_path = PathBuf::from(".swcrc");
+                std::fs::write(&output_path, config).unwrap();
+                println!("Saved config to {}", output_path.display());
+            } else {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&cleaned_options).unwrap()
+                );
+            }
         }
         Err(e) => {
             eprintln!("{}", e);
