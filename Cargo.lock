@@ -225,6 +225,7 @@ dependencies = [
  "clap",
  "env_logger",
  "human-panic",
+ "lazy_static",
  "log",
  "notify",
  "pathdiff",
