@@ -5,10 +5,9 @@ use bndl_deps::Manager;
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use log::debug;
 use serde::{Deserialize, Serialize};
-use std::borrow::BorrowMut;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, MutexGuard};
+use std::sync::Mutex;
 use std::{env, fs};
 use swc::config::{Config, ModuleConfig, Options, SourceMapsConfig};
 use swc::{
@@ -122,60 +121,61 @@ impl TsConfigJson {
     fn fetch_config_content(
         config_path: &Path,
         internal_packages: &HashMap<String, PathBuf>,
-        cache: &mut MutexGuard<HashMap<PathBuf, String>>,
     ) -> String {
-        // Check if we have already fetched this config
-        if let Some(content) = cache.get(config_path) {
-            return content.clone();
-        }
+        match fs::read_to_string(config_path) {
+            Ok(config_str) => config_str,
+            Err(_) => {
+                let mut relative_path_to_append = Vec::new();
+                let mut path = config_path.to_str().unwrap();
+                let mut content = String::from("{\"compilerOptions\": {}}");
 
-        // Check if we can read the file and cache it
-        if let Ok(content) = fs::read_to_string(config_path) {
-            cache.insert(config_path.to_path_buf(), content.clone());
+                while let Some(index) = path.rfind('/') {
+                    let package_name = &path[..index];
 
-            return content;
-        }
+                    // Keep track of the parts we strip from the path since we need to append them later
+                    relative_path_to_append.push(&path[index + 1..]);
 
-        let mut relative_path_to_append = Vec::new();
-        let mut path = config_path.to_str().unwrap();
-        let mut content = String::from("{\"compilerOptions\": {}}");
+                    // Look up the path for the specified package
+                    if let Some(package_path) = internal_packages.get(package_name) {
+                        // Need to reverse to get the correct order again since we stripped from the end
+                        relative_path_to_append.reverse();
 
-        // Go through the path and strip the last part until we find a match in the internal packages
-        while let Some(index) = path.rfind('/') {
-            let package_name = &path[..index];
+                        // Construct full path to try and fetch
+                        let full_path = package_path.join(relative_path_to_append.join("/"));
 
-            // Keep track of the parts we strip from the path since we need to append them later
-            relative_path_to_append.push(&path[index + 1..]);
+                        // Check if we have already fetched this config
+                        let mut cache = TSCONFIG_CONTENT.lock().unwrap();
+                        content = match cache.get(&full_path) {
+                            Some(content) => content.clone(),
+                            None => {
+                                debug!("Found internal extend {:?}", full_path);
 
-            // Look up the path for the specified package
-            if let Some(package_path) = internal_packages.get(package_name) {
-                // Need to reverse to get the correct order again since we stripped from the end
-                relative_path_to_append.reverse();
+                                let content =
+                                    Self::fetch_config_content(&full_path, internal_packages);
 
-                // Construct full path to try and fetch
-                let full_path = package_path.join(relative_path_to_append.join("/"));
-                debug!("Found internal extend {:?}", full_path);
+                                // Cache the content for future use
+                                cache.insert(full_path, content.clone());
 
-                content = Self::fetch_config_content(&full_path, internal_packages, cache);
+                                content
+                            }
+                        };
 
-                // Cache the content for future use
-                cache.insert(config_path.to_path_buf(), content.clone());
+                        break;
+                    }
 
-                break;
+                    path = package_name;
+                }
+
+                content
             }
-
-            path = package_name;
         }
-
-        content
     }
 
     fn load_and_merge_tsconfig(
         config_path: &Path,
         internal_packages: &HashMap<String, PathBuf>,
-        cache: &mut MutexGuard<HashMap<PathBuf, String>>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        let config_str = Self::fetch_config_content(config_path, internal_packages, cache);
+        let config_str = Self::fetch_config_content(config_path, internal_packages);
         let mut tsconfig: Self = serde_json::from_str(&config_str)?;
 
         if let Some(ref extends) = tsconfig.extends {
@@ -188,7 +188,7 @@ impl TsConfigJson {
             };
 
             let base_tsconfig =
-                Self::load_and_merge_tsconfig(&base_config_path, internal_packages, cache)?;
+                Self::load_and_merge_tsconfig(&base_config_path, internal_packages)?;
 
             tsconfig.compilerOptions = Self::merge_compiler_options(
                 &base_tsconfig.compilerOptions,
@@ -204,11 +204,9 @@ impl TsConfigJson {
             return Ok(Self::default());
         }
 
-        // We fetch the cache beforehand to avoid causing a deadlock trying to lock the mutex multiple times
-        let mut content_cache = TSCONFIG_CONTENT.lock().unwrap();
         let manager = Manager::new()?;
 
-        Self::load_and_merge_tsconfig(config_path, &manager.packages, content_cache.borrow_mut())
+        Self::load_and_merge_tsconfig(config_path, &manager.packages)
     }
 }
 
