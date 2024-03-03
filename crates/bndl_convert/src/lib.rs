@@ -1,9 +1,13 @@
+#[macro_use]
+extern crate lazy_static;
+
 use bndl_deps::Manager;
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use log::debug;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use std::{env, fs};
 use swc::config::{Config, ModuleConfig, Options, SourceMapsConfig};
 use swc::{
@@ -12,6 +16,10 @@ use swc::{
 };
 use swc_ecma_parser::{Syntax, TsConfig};
 use swc_ecma_transforms_module::{amd, common_js, umd};
+
+lazy_static! {
+    static ref TSCONFIG_CONTENT: Mutex<HashMap<PathBuf, String>> = Mutex::new(HashMap::new());
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct CompilerOptions {
@@ -134,12 +142,28 @@ impl TsConfigJson {
 
                         // Construct full path to try and fetch
                         let full_path = package_path.join(relative_path_to_append.join("/"));
-                        content = Self::fetch_config_content(&full_path, internal_packages);
+
+                        // Check if we have already fetched this config
+                        let mut cache = TSCONFIG_CONTENT.lock().unwrap();
+                        content = match cache.get(&full_path) {
+                            Some(content) => content.clone(),
+                            None => {
+                                debug!("Found internal extend {:?}", full_path);
+
+                                let content =
+                                    Self::fetch_config_content(&full_path, internal_packages);
+
+                                // Cache the content for future use
+                                cache.insert(full_path, content.clone());
+
+                                content
+                            }
+                        };
 
                         break;
-                    } else {
-                        path = package_name;
                     }
+
+                    path = package_name;
                 }
 
                 content
