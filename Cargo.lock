@@ -246,6 +246,7 @@ dependencies = [
  "clap",
  "env_logger",
  "globset",
+ "lazy_static",
  "log",
  "serde",
  "serde_json",
