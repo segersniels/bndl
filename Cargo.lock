@@ -246,6 +246,7 @@ dependencies = [
  "clap",
  "env_logger",
  "globset",
+ "lazy_static",
  "log",
  "serde",
  "serde_json",
@@ -260,6 +261,7 @@ dependencies = [
 name = "bndl_deps"
 version = "1.0.4"
 dependencies = [
+ "lazy_static",
  "log",
  "serde",
  "serde_json",

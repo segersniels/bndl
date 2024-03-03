@@ -30,6 +30,7 @@ bndl_deps = { version = "1.0.4", path = "../bndl_deps" }
 clap = "4.4.8"
 env_logger = "0.10.1"
 globset = "0.4.13"
+lazy_static = "1.4.0"
 log = "0.4.20"
 serde = { version = "1.0.192", features = ["derive"] }
 serde_json = "1.0.108"
