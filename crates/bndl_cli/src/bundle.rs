@@ -1,4 +1,5 @@
 use bndl_convert::Converter;
+use bndl_deps::Manager;
 use log::debug;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::fs;
@@ -14,7 +15,9 @@ fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> 
 
         if file_type.is_symlink() {
             continue;
-        } else if file_type.is_dir() {
+        }
+
+        if file_type.is_dir() {
             copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
         } else {
             fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
@@ -24,10 +27,11 @@ fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> 
     Ok(())
 }
 
-pub fn bundle(app_out_path: &PathBuf) -> Result<(), String> {
+pub fn bundle(app_out_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let app_dir = env::current_dir().unwrap_or(PathBuf::from("."));
+    let manager = Manager::new()?;
     let dependencies: std::collections::HashMap<String, std::path::PathBuf> =
-        bndl_deps::fetch_used_dependencies();
+        manager.fetch_used_dependencies(&app_dir.join("package.json"));
 
     dependencies.into_par_iter().for_each(|(name, path)| {
         let config_path = path.join("tsconfig.json");

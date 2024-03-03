@@ -1,8 +1,13 @@
+#[macro_use]
+extern crate lazy_static;
+
+use bndl_deps::Manager;
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use log::debug;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use std::{env, fs};
 use swc::config::{Config, ModuleConfig, Options, SourceMapsConfig};
 use swc::{
@@ -11,6 +16,10 @@ use swc::{
 };
 use swc_ecma_parser::{Syntax, TsConfig};
 use swc_ecma_transforms_module::{amd, common_js, umd};
+
+lazy_static! {
+    static ref TSCONFIG_CONTENT: Mutex<HashMap<PathBuf, String>> = Mutex::new(HashMap::new());
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct CompilerOptions {
@@ -133,14 +142,28 @@ impl TsConfigJson {
 
                         // Construct full path to try and fetch
                         let full_path = package_path.join(relative_path_to_append.join("/"));
-                        debug!("Found internal extend {:?}", full_path);
 
-                        content = Self::fetch_config_content(&full_path, internal_packages);
+                        // Check if we have already fetched this config
+                        let mut cache = TSCONFIG_CONTENT.lock().unwrap();
+                        content = match cache.get(&full_path) {
+                            Some(content) => content.clone(),
+                            None => {
+                                debug!("Found internal extend {:?}", full_path);
+
+                                let content =
+                                    Self::fetch_config_content(&full_path, internal_packages);
+
+                                // Cache the content for future use
+                                cache.insert(full_path, content.clone());
+
+                                content
+                            }
+                        };
 
                         break;
-                    } else {
-                        path = package_name;
                     }
+
+                    path = package_name;
                 }
 
                 content
@@ -151,7 +174,7 @@ impl TsConfigJson {
     fn load_and_merge_tsconfig(
         config_path: &Path,
         internal_packages: &HashMap<String, PathBuf>,
-    ) -> serde_json::Result<Self> {
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let config_str = Self::fetch_config_content(config_path, internal_packages);
         let mut tsconfig: Self = serde_json::from_str(&config_str)?;
 
@@ -166,6 +189,7 @@ impl TsConfigJson {
 
             let base_tsconfig =
                 Self::load_and_merge_tsconfig(&base_config_path, internal_packages)?;
+
             tsconfig.compilerOptions = Self::merge_compiler_options(
                 &base_tsconfig.compilerOptions,
                 &tsconfig.compilerOptions,
@@ -175,14 +199,14 @@ impl TsConfigJson {
         Ok(tsconfig)
     }
 
-    pub fn from_path(config_path: &Path) -> Result<Self, serde_json::Error> {
+    pub fn from_path(config_path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
         if !config_path.exists() {
             return Ok(Self::default());
         }
 
-        let packages = bndl_deps::fetch_packages();
+        let manager = Manager::new()?;
 
-        Self::load_and_merge_tsconfig(config_path, &packages)
+        Self::load_and_merge_tsconfig(config_path, &manager.packages)
     }
 }
 

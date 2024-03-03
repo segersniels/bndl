@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate lazy_static;
+
 use bndl_convert::Converter;
 use clap::{ArgAction, Command};
 use human_panic::setup_panic;

@@ -2,7 +2,9 @@ use bndl_convert::{Converter, GlobSetConfig, SerializableOptions};
 use log::debug;
 use notify::{self, RecursiveMode, Watcher};
 use rayon::prelude::*;
+use std::collections::HashSet;
 use std::path::PathBuf;
+use std::sync::Mutex;
 use std::{env, fs, process};
 use std::{path::Path, sync::Arc};
 
@@ -12,21 +14,19 @@ use walkdir::{DirEntry, WalkDir};
 use crate::bundle;
 use crate::utils::sourcemap;
 
+lazy_static! {
+    static ref CREATED_DIRS: Mutex<HashSet<PathBuf>> = Mutex::new(HashSet::new());
+}
+
 /// Removes the output directory if it exists
-pub fn clean_out_dir(out_path: &Path) {
-    if out_path.as_os_str().is_empty() {
-        return;
-    }
-
-    let dir_to_delete = env::current_dir()
-        .unwrap_or(PathBuf::from("."))
-        .join(out_path);
-
+pub fn clean_out_dir(out_path: &Path) -> Result<(), std::io::Error> {
+    let dir_to_delete = env::current_dir()?.join(out_path);
     if dir_to_delete.exists() {
         debug!("Cleaning output directory: {:?}", dir_to_delete);
-        fs::remove_dir_all(&dir_to_delete)
-            .unwrap_or_else(|_| panic!("Failed to remove directory {:?}", dir_to_delete));
+        fs::remove_dir_all(&dir_to_delete)?;
     }
+
+    Ok(())
 }
 
 /// Creates .d.ts files for the project
@@ -105,6 +105,20 @@ fn check_to_ignore_watch_event(event: &notify::Event) -> bool {
     false
 }
 
+fn create_directory_if_not_exists(path: &Path) -> Result<(), std::io::Error> {
+    let mut cache = CREATED_DIRS.lock().unwrap();
+    if cache.contains(path) {
+        return Ok(());
+    }
+
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+        cache.insert(parent.to_path_buf());
+    }
+
+    Ok(())
+}
+
 pub struct Transpiler {
     converter: Converter,
 }
@@ -134,10 +148,9 @@ impl Transpiler {
         let source_map_path = output_file_path.with_extension("js.map");
 
         // Create missing directories if they don't exist yet
-        if let Some(path) = output_file_path.parent() {
-            fs::create_dir_all(path)
-                .unwrap_or_else(|_| panic!("Failed to create directory {:?}", path));
-        };
+        if let Err(err) = create_directory_if_not_exists(&output_file_path) {
+            panic!("Failed to create directory: {:?}", err);
+        }
 
         let extended_options = swc::config::Options {
             source_file_name: sourcemap::determine_source_file_name(
@@ -251,10 +264,14 @@ impl Transpiler {
             if path.is_dir() && check_to_ignore_dir(&entry, glob_sets) {
                 it.skip_current_dir();
                 continue;
-            } else if path.is_symlink() {
+            }
+
+            if path.is_symlink() {
                 // Don't bother following symlinks
                 continue;
-            } else if path
+            }
+
+            if path
                 .extension()
                 .map_or(false, |ext| ext == "ts" || ext == "tsx" || ext == "js")
             {
@@ -272,9 +289,9 @@ impl Transpiler {
             .for_each(|path| self.compile_file(path, compiler, options, glob_sets));
     }
 
-    pub fn transpile(&self, opts: TranspileOptions) -> Result<(), String> {
+    pub fn transpile(&self, opts: TranspileOptions) -> Result<(), Box<dyn std::error::Error>> {
         if opts.clean {
-            clean_out_dir(&opts.out_dir);
+            clean_out_dir(&opts.out_dir)?;
         }
 
         let options = swc::config::Options {
@@ -285,7 +302,7 @@ impl Transpiler {
 
         debug!(
             "Options: {}",
-            serde_json::to_string_pretty(&SerializableOptions::from(&options)).unwrap()
+            serde_json::to_string_pretty(&SerializableOptions::from(&options))?
         );
 
         // Build glob sets based on the tsconfig include & exclude
