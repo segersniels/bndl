@@ -1,7 +1,7 @@
-use bndl_convert::SerializableOptions;
+use bndl_convert::{Converter, SerializableOptions};
 use clap::{ArgAction, Command};
 use serde_json::Value;
-use std::{env, path::PathBuf, process};
+use std::{env, path::PathBuf};
 use swc::config::Options;
 
 fn cli() -> Command {
@@ -77,13 +77,13 @@ fn remove_unwanted_values(value: &mut Value) -> Value {
 }
 
 /// Remove `null` values and empty objects from the config before logging
-fn parse_options_before_logging(options: &Options) -> Value {
-    let mut value = serde_json::to_value(SerializableOptions::from(options)).unwrap();
+fn parse_options_before_logging(options: Options) -> Value {
+    let mut value = serde_json::to_value(SerializableOptions::from(&options)).unwrap();
 
     remove_unwanted_values(&mut value)
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
     let matches = cli().get_matches();
@@ -94,25 +94,17 @@ fn main() {
         _ => "tsconfig.json",
     };
 
-    match bndl_convert::convert_from_path(&PathBuf::from(filename), Some(minify_output), None) {
-        Ok(options) => {
-            let cleaned_options = parse_options_before_logging(&options);
-            let config = serde_json::to_string_pretty(&cleaned_options).unwrap();
+    let converter = Converter::from_path(&PathBuf::from(filename), Some(minify_output), None)?;
+    let options = parse_options_before_logging(converter.convert());
+    let config = serde_json::to_string_pretty(&options).unwrap();
 
-            if should_save {
-                let output_path = PathBuf::from(".swcrc");
-                std::fs::write(&output_path, config).unwrap();
-                println!("Saved config to {}", output_path.display());
-            } else {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&cleaned_options).unwrap()
-                );
-            }
-        }
-        Err(e) => {
-            eprintln!("{}", e);
-            process::exit(1);
-        }
+    if should_save {
+        let output_path = PathBuf::from(".swcrc");
+        std::fs::write(&output_path, config).unwrap();
+        println!("Saved config to {}", output_path.display());
+    } else {
+        println!("{}", serde_json::to_string_pretty(&options).unwrap());
     }
+
+    Ok(())
 }

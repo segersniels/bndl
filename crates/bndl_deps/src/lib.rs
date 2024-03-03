@@ -31,19 +31,21 @@ struct PackageJson {
     pub dependencies: Option<HashMap<String, String>>,
 }
 
-fn fetch_package_json(path: &Path) -> PackageJson {
-    if !path.exists() {
-        return PackageJson::default();
-    }
+impl PackageJson {
+    pub fn from_path(path: &Path) -> Self {
+        if !path.exists() {
+            return PackageJson::default();
+        }
 
-    let package_json_str =
-        fs::read_to_string(path).unwrap_or_else(|_| panic!("Unable to read {:?}", path));
+        let package_json_str =
+            fs::read_to_string(path).unwrap_or_else(|_| panic!("Unable to read {:?}", path));
 
-    match serde_json::from_str(&package_json_str) {
-        Ok(package_json) => package_json,
-        Err(err) => {
-            debug!("{err} for {:#?}", path);
-            PackageJson::default()
+        match serde_json::from_str(&package_json_str) {
+            Ok(package_json) => package_json,
+            Err(err) => {
+                debug!("{err} for {:#?}", path);
+                Self::default()
+            }
         }
     }
 }
@@ -52,14 +54,11 @@ fn find_workspace_root() -> Result<PathBuf, String> {
     let mut current_dir = env::current_dir().unwrap();
 
     loop {
-        let package_json_path = current_dir.join("package.json");
-        if package_json_path.exists() {
-            let package_json = fetch_package_json(&package_json_path);
-            if package_json.workspaces.is_some() {
-                debug!("Found workspace root at {:?}", current_dir);
+        let package_json = PackageJson::from_path(&current_dir.join("package.json"));
+        if package_json.workspaces.is_some() {
+            debug!("Found workspace root at {:?}", current_dir);
 
-                return Ok(current_dir);
-            }
+            return Ok(current_dir);
         }
 
         if current_dir.parent().is_none() {
@@ -105,7 +104,7 @@ pub fn fetch_packages() -> HashMap<String, PathBuf> {
                     continue;
                 }
 
-                let package_json = fetch_package_json(path);
+                let package_json = PackageJson::from_path(path);
                 packages.insert(package_json.name, path.parent().unwrap().to_owned());
             }
 
@@ -122,7 +121,7 @@ pub fn fetch_packages() -> HashMap<String, PathBuf> {
 
 /// Fetches the internal packages of the monorepo that are used in the current package
 pub fn fetch_used_dependencies() -> HashMap<String, PathBuf> {
-    let package_json = fetch_package_json(Path::new("package.json"));
+    let package_json = PackageJson::from_path(Path::new("package.json"));
     let dependencies = package_json.dependencies.unwrap_or_default();
 
     let internal_dependencies = fetch_packages()

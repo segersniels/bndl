@@ -1,9 +1,12 @@
+use bndl_convert::Converter;
 use clap::{ArgAction, Command};
 use human_panic::setup_panic;
 use std::{path::PathBuf, process};
 
-use crate::utils::compile::TranspileOptions;
+use transpile::{TranspileOptions, Transpiler};
 
+mod bundle;
+mod transpile;
 mod utils;
 
 fn cli() -> Command {
@@ -59,7 +62,7 @@ fn cli() -> Command {
         )
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
     setup_panic!();
     let matches = cli().get_matches();
@@ -81,61 +84,51 @@ fn main() {
         _ => PathBuf::from("."),
     };
 
-    // Fetch the tsconfig.json
-    let tsconfig = match bndl_convert::fetch_tsconfig(&PathBuf::from(config_path)) {
-        Ok(tsconfig) => tsconfig,
-        Err(err) => {
-            eprintln!("{err}");
-            process::exit(1);
-        }
-    };
+    let converter = Converter::from_path(&PathBuf::from(config_path), None, None)?;
+    let transpiler = Box::new(Transpiler::new(&converter));
 
     // Determine the output path (give priority to the optional flag)
     let override_out_dir = matches.get_one::<String>("outDir").map(PathBuf::from);
-    let out_dir = bndl_convert::determine_out_dir(&tsconfig, override_out_dir);
+    let out_dir = converter.determine_out_dir(override_out_dir);
 
     // If requested, only bundle the internal dependencies
     if matches.get_flag("only-bundle") {
-        if let Err(err) = utils::bundle::bundle(&out_dir) {
+        if let Err(err) = bundle::bundle(&out_dir) {
             eprintln!("{err}");
         }
 
-        return;
+        return Ok(());
     }
 
     // If the watch flag is set, watch the input files for changes and recompile when they change
     if matches.get_flag("watch") {
-        if let Err(err) = utils::compile::watch(
-            TranspileOptions {
-                input_path,
-                out_dir,
-                config_path: PathBuf::from(config_path),
-                minify_output: matches.get_flag("minify"),
-                bundle: !matches.get_flag("no-bundle"),
-                clean: false,
-            },
-            tsconfig,
-        ) {
-            eprintln!("{err}");
-            process::exit(1)
-        }
-
-        return;
-    }
-
-    // Otherwise, just transpile the input files
-    if let Err(err) = utils::compile::transpile(
-        TranspileOptions {
+        if let Err(err) = transpiler.watch(TranspileOptions {
             input_path,
             out_dir,
             config_path: PathBuf::from(config_path),
             minify_output: matches.get_flag("minify"),
-            clean: matches.get_flag("clean"),
             bundle: !matches.get_flag("no-bundle"),
-        },
-        &tsconfig,
-    ) {
+            clean: false,
+        }) {
+            eprintln!("{err}");
+            process::exit(1)
+        }
+
+        return Ok(());
+    }
+
+    // Otherwise, just transpile the input files
+    if let Err(err) = transpiler.transpile(TranspileOptions {
+        input_path,
+        out_dir,
+        config_path: PathBuf::from(config_path),
+        minify_output: matches.get_flag("minify"),
+        clean: matches.get_flag("clean"),
+        bundle: !matches.get_flag("no-bundle"),
+    }) {
         eprintln!("{err}");
         process::exit(1)
-    }
+    };
+
+    Ok(())
 }
