@@ -39,6 +39,23 @@ $ sh -c "$(curl -fsSL https://raw.githubusercontent.com/segersniels/bndl/master/
 $ sh -c "$(wget https://raw.githubusercontent.com/segersniels/bndl/master/scripts/install.sh -O -)"
 ```
 
+## Usage
+
+```bash
+Usage: bndl [OPTIONS] [COMMAND]
+
+Options:
+  -p, --project <project>  The path to the project config file
+      --outDir <outDir>    Specify an output folder for all emitted files.
+      --clean              Clean the output folder if it exists before bundling
+      --only-bundle        Skips compilation and only bundles the input files, assuming they are already compiled beforehand
+      --no-bundle          Disable automatic bundling of internal monorepo dependencies
+  -m, --minify             Minify the output bundle
+  -w, --watch              Experimental: watch the input files for changes and recompile when they change
+  -h, --help               Print help
+  -V, --version            Print version
+```
+
 ## Contributing
 
 Expect a lot of missing functionality and potential things breaking. This was made with a specific use case in mind and there might be cases where functionality drifts from what you might need. Feel free to make issues or PRs adding your requested functionality.
