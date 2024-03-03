@@ -4,7 +4,7 @@
 [![npm](https://img.shields.io/npm/v/bndl-cli)](https://www.npmjs.com/package/bndl-cli)
 ![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/segersniels/bndl/bin.yml)
 
-Introducing `bndl`, a basic TypeScript transpiling and bundling tool for (primarily backend) monorepos. It uses [SWC](https://swc.rs/) under the hood so it benefits from the speed improvements that it brings over `tsc`.
+Introducing `bndl`, a basic TypeScript transpiling and bundling tool for backend monorepos. It uses [SWC](https://swc.rs/) under the hood so it benefits from the speed improvements that it brings over `tsc`.
 
 <p align="center">
 <img src="https://github.com/segersniels/bndl/blob/master/resources/bndl.png?raw=true" width="250">
