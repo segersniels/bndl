@@ -199,14 +199,16 @@ impl TsConfigJson {
         Ok(tsconfig)
     }
 
-    pub fn from_path(config_path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn from_path(
+        config_path: &Path,
+        manager: &Manager,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         if !config_path.exists() {
             return Ok(Self::default());
         }
 
         // We fetch the cache beforehand to avoid causing a deadlock trying to lock the mutex multiple times
         let mut content_cache = TSCONFIG_CONTENT.lock().unwrap();
-        let manager = Manager::new()?;
 
         Self::load_and_merge_tsconfig(config_path, &manager.packages, content_cache.borrow_mut())
     }
@@ -278,10 +280,16 @@ pub struct GlobSetConfig {
     pub exclude: GlobSet,
 }
 
-/// A struct to convert a `tsconfig.json` into a `swc::config::Options`
+#[derive(Default)]
+pub struct CreateConverterOptions {
+    pub manager: Option<Manager>,
+    pub minify_output: Option<bool>,
+    pub enable_experimental_swc_declarations: Option<bool>,
+}
+
+/// Convert a `tsconfig.json` into a `swc::config::Options`
 /// This is a builder pattern to allow for easy configuration of the `swc::config::Options`
-/// based on the `tsconfig.json`. I couldn't find a suitable alternative to convert a `tsconfig.json`
-/// into a `swc::config::Options` so I decided to write my own...
+/// based on the `tsconfig.json`
 #[derive(Clone)]
 pub struct Converter {
     minify_output: Option<bool>,
@@ -518,25 +526,28 @@ impl Converter {
 
     pub fn from_path(
         config_path: &Path,
-        minify_output: Option<bool>,
-        enable_experimental_swc_declarations: Option<bool>,
+        options: CreateConverterOptions,
     ) -> Result<Self, Box<dyn std::error::Error>> {
+        let manager = match options.manager {
+            Some(manager) => manager.clone(),
+            None => Manager::new()?,
+        };
+
         Ok(Self {
-            minify_output,
-            enable_experimental_swc_declarations,
-            tsconfig: TsConfigJson::from_path(config_path)?,
+            tsconfig: TsConfigJson::from_path(config_path, &manager)?,
+            minify_output: options.minify_output,
+            enable_experimental_swc_declarations: options.enable_experimental_swc_declarations,
         })
     }
 
     pub fn from_tsconfig(
         tsconfig: &TsConfigJson,
-        minify_output: Option<bool>,
-        enable_experimental_swc_declarations: Option<bool>,
+        options: CreateConverterOptions,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         Ok(Self {
-            minify_output,
-            enable_experimental_swc_declarations,
             tsconfig: tsconfig.clone(),
+            minify_output: options.minify_output,
+            enable_experimental_swc_declarations: options.enable_experimental_swc_declarations,
         })
     }
 }

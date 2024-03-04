@@ -1,12 +1,15 @@
 #[macro_use]
 extern crate lazy_static;
 
-use bndl_convert::Converter;
+use bndl_convert::{Converter, CreateConverterOptions};
+use bndl_deps::Manager;
 use clap::{ArgAction, Command};
 use human_panic::setup_panic;
 use std::{path::PathBuf, process};
 
 use transpile::{TranspileOptions, Transpiler};
+
+use crate::bundle::Bundler;
 
 mod bundle;
 mod transpile;
@@ -87,8 +90,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         _ => PathBuf::from("."),
     };
 
-    let converter = Converter::from_path(&PathBuf::from(config_path), None, None)?;
-    let transpiler = Box::new(Transpiler::new(&converter));
+    let manager = Manager::new()?;
+    let converter = Converter::from_path(
+        &PathBuf::from(config_path),
+        CreateConverterOptions {
+            minify_output: None,
+            enable_experimental_swc_declarations: None,
+            manager: Some(manager.clone()),
+        },
+    )?;
+    let bundler = Bundler::new(Some(&manager))?;
+    let transpiler = Box::new(Transpiler::new(&converter, &bundler));
 
     // Determine the output path (give priority to the optional flag)
     let override_out_dir = matches.get_one::<String>("outDir").map(PathBuf::from);
@@ -96,7 +108,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // If requested, only bundle the internal dependencies
     if matches.get_flag("only-bundle") {
-        if let Err(err) = bundle::bundle(&out_dir) {
+        if let Err(err) = bundler.bundle(&out_dir) {
             eprintln!("{err}");
         }
 

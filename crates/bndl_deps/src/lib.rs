@@ -70,6 +70,7 @@ fn check_to_ignore_dir(entry: &DirEntry) -> bool {
 }
 
 /// Responsible for managing the monorepo by determining the internal packages and their dependencies
+#[derive(Clone)]
 pub struct Manager {
     pub root: PathBuf,
     pub packages: HashMap<String, PathBuf>,
@@ -113,7 +114,6 @@ impl Manager {
 
     /// Fetches the internal packages of the monorepo with their name and path
     fn fetch_packages(root: &PathBuf) -> HashMap<String, PathBuf> {
-        // Check if the root has already been found before
         let mut state = STATE.lock().unwrap();
         if !state.packages.is_empty() {
             return state.packages.clone();

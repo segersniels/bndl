@@ -11,7 +11,7 @@ use std::{path::Path, sync::Arc};
 use swc_common::{SourceMap, GLOBALS};
 use walkdir::{DirEntry, WalkDir};
 
-use crate::bundle;
+use crate::bundle::Bundler;
 use crate::utils::sourcemap;
 
 lazy_static! {
@@ -119,14 +119,17 @@ fn create_directory_if_not_exists(path: &Path) -> Result<(), std::io::Error> {
     Ok(())
 }
 
+/// Transpiler is responsible for converting TypeScript/JavaScript files to JavaScript
 pub struct Transpiler {
     converter: Converter,
+    bundler: Bundler,
 }
 
 impl Transpiler {
-    pub fn new(converter: &Converter) -> Self {
+    pub fn new(converter: &Converter, bundler: &Bundler) -> Self {
         Self {
             converter: converter.clone(),
+            bundler: bundler.clone(),
         }
     }
 
@@ -335,7 +338,7 @@ impl Transpiler {
 
         // Bundle the monorepo dependencies if the flag is set
         if opts.bundle {
-            bundle::bundle(&opts.out_dir)?;
+            self.bundler.bundle(&opts.out_dir)?;
         }
 
         Ok(())

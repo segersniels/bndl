@@ -1,4 +1,4 @@
-use bndl_convert::{Converter, SerializableOptions};
+use bndl_convert::{Converter, CreateConverterOptions, SerializableOptions};
 use clap::{ArgAction, Command};
 use serde_json::Value;
 use std::{env, path::PathBuf};
@@ -93,8 +93,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some((query, _)) => query,
         _ => "tsconfig.json",
     };
-
-    let converter = Converter::from_path(&PathBuf::from(filename), Some(minify_output), None)?;
+    let converter = Converter::from_path(
+        &PathBuf::from(filename),
+        CreateConverterOptions {
+            minify_output: Some(minify_output),
+            ..Default::default()
+        },
+    )?;
     let options = parse_options_before_logging(converter.convert());
     let config = serde_json::to_string_pretty(&options).unwrap();
 
