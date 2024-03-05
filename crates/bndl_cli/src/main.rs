@@ -115,16 +115,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
+    let transpile_options = TranspileOptions {
+        input_path,
+        out_dir,
+        config_path: PathBuf::from(config_path),
+        minify_output: matches.get_flag("minify"),
+        bundle: !matches.get_flag("no-bundle"),
+        clean: matches.get_flag("clean"),
+    };
+
     // If the watch flag is set, watch the input files for changes and recompile when they change
     if matches.get_flag("watch") {
-        if let Err(err) = transpiler.watch(TranspileOptions {
-            input_path,
-            out_dir,
-            config_path: PathBuf::from(config_path),
-            minify_output: matches.get_flag("minify"),
-            bundle: !matches.get_flag("no-bundle"),
-            clean: false,
-        }) {
+        if let Err(err) = transpiler.watch(transpile_options) {
             eprintln!("{err}");
             process::exit(1)
         }
@@ -133,14 +135,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Otherwise, just transpile the input files
-    if let Err(err) = transpiler.transpile(TranspileOptions {
-        input_path,
-        out_dir,
-        config_path: PathBuf::from(config_path),
-        minify_output: matches.get_flag("minify"),
-        clean: matches.get_flag("clean"),
-        bundle: !matches.get_flag("no-bundle"),
-    }) {
+    if let Err(err) = transpiler.transpile(transpile_options) {
         eprintln!("{err}");
         process::exit(1)
     };
