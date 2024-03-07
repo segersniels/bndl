@@ -66,7 +66,6 @@ pub struct TranspileOptions {
     pub input_path: PathBuf,
     pub out_dir: PathBuf,
     pub config_path: PathBuf,
-    pub minify_output: bool,
     pub clean: bool,
     pub bundle: bool,
 }
@@ -386,7 +385,6 @@ impl Transpiler {
                                 input_path: path,
                                 out_dir: opts.out_dir.clone(),
                                 config_path: opts.config_path.clone(),
-                                minify_output: opts.minify_output,
                                 clean: false,
                                 bundle: false,
                             }) {

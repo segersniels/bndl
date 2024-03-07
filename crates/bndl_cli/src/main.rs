@@ -94,7 +94,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let converter = Converter::from_path(
         &PathBuf::from(config_path),
         CreateConverterOptions {
-            minify_output: None,
+            minify_output: Some(matches.get_flag("minify")),
             enable_experimental_swc_declarations: None,
             manager: Some(manager.clone()),
         },
@@ -119,7 +119,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         input_path,
         out_dir,
         config_path: PathBuf::from(config_path),
-        minify_output: matches.get_flag("minify"),
         bundle: !matches.get_flag("no-bundle"),
         clean: matches.get_flag("clean"),
     };
