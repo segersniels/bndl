@@ -1,6 +1,6 @@
 [package]
 name = "bndl_cli"
-version = "1.6.5"
+version = "1.7.0"
 description = "A basic TypeScript transpiling and bundling tool for (primarily backend) monorepos"
 authors = ["Niels Segers <contact@niels.foo>"]
 edition = "2021"
