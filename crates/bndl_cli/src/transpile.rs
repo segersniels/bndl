@@ -1,5 +1,6 @@
 use bndl_convert::{Converter, GlobSetConfig, SerializableOptions};
-use log::debug;
+use command_group::CommandGroup;
+use log::{debug, info};
 use notify::{self, RecursiveMode, Watcher};
 use rayon::prelude::*;
 use std::collections::HashSet;
@@ -7,7 +8,6 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use std::{env, fs, process};
 use std::{path::Path, sync::Arc};
-
 use swc_common::{SourceMap, GLOBALS};
 use walkdir::{DirEntry, WalkDir};
 
@@ -345,7 +345,12 @@ impl Transpiler {
 
     /// Watch the input directory for changes and recompile when necessary.
     /// Consumes the `Transpiler` instance when calling this function.
-    pub fn watch(self: Box<Self>, opts: TranspileOptions) -> notify::Result<()> {
+    pub fn watch(
+        self: Box<Self>,
+        opts: TranspileOptions,
+        exec: Option<&String>,
+    ) -> notify::Result<()> {
+        let (tx, rx) = std::sync::mpsc::channel();
         let app_dir = env::current_dir().unwrap_or(PathBuf::from("."));
 
         // Transpile fully once before we start watching
@@ -380,17 +385,33 @@ impl Transpiler {
                                 continue;
                             }
 
+                            // Ignore turbo config files
+                            if path.to_str().unwrap().contains(".turbo/") {
+                                debug!("Ignoring path: {:#?}", path);
+                                continue;
+                            }
+
+                            // Ignore changes in node_modules
+                            if path.to_str().unwrap().contains("node_modules") {
+                                debug!("Ignoring path: {:#?}", path);
+                                continue;
+                            }
+
                             debug!("File changed: {:?}", path);
-                            if let Err(err) = self.transpile(TranspileOptions {
+                            let opts = TranspileOptions {
                                 input_path: path,
                                 out_dir: opts.out_dir.clone(),
                                 config_path: opts.config_path.clone(),
                                 clean: false,
                                 bundle: false,
-                            }) {
+                            };
+
+                            if let Err(err) = self.transpile(opts.clone()) {
                                 // Just print the error but keep watching so the user can correct his error
                                 eprintln!("{err}");
                             }
+
+                            tx.send(opts.input_path).unwrap();
                         }
                     }
                     Err(err) => {
@@ -400,6 +421,69 @@ impl Transpiler {
             })?;
 
         watcher.watch(&input_path, RecursiveMode::Recursive)?;
+
+        if let Some(exec) = exec {
+            debug!("Starting {:?} process", exec);
+
+            // Start the initial process
+            let process_guard = match std::process::Command::new("sh")
+                .arg("-c")
+                .arg(exec)
+                .group_spawn()
+            {
+                Ok(child) => Arc::new(Mutex::new(child)),
+                Err(err) => {
+                    eprintln!("{:?}", err);
+                    process::exit(1);
+                }
+            };
+
+            // Intercept the Ctrl-C signal to also kill the process group
+            let guard = process_guard.clone();
+            ctrlc::set_handler(move || {
+                let mut child = guard.lock().unwrap();
+
+                if let Err(err) = child.kill() {
+                    eprintln!("{:?}", err);
+                }
+
+                process::exit(0);
+            })
+            .expect("Error setting Ctrl-C handler");
+
+            // Listen for successful transpile events and restart the process
+            loop {
+                match rx.recv() {
+                    Ok(_) => {
+                        let mut child = process_guard.lock().unwrap();
+
+                        debug!("Killing {:?} process", child.id());
+                        if let Err(err) = child.kill() {
+                            eprintln!("{:?}", err);
+                        }
+
+                        info!("Restarting {:?}", exec);
+                        let restarted_process = match std::process::Command::new("sh")
+                            .arg("-c")
+                            .arg(exec)
+                            .group_spawn()
+                        {
+                            Ok(child) => child,
+                            Err(err) => {
+                                eprintln!("{:?}", err);
+                                process::exit(1);
+                            }
+                        };
+
+                        *child = restarted_process;
+                    }
+                    Err(err) => {
+                        eprintln!("{:?}", err);
+                        break;
+                    }
+                }
+            }
+        }
 
         // The watcher will run asynchronously, so we need to keep the main thread alive
         loop {

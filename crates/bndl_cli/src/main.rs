@@ -66,6 +66,12 @@ fn cli() -> Command {
                 .help("Experimental: watch the input files for changes and recompile when they change")
                 .action(ArgAction::SetTrue),
         )
+        .arg(
+            clap::Arg::new("exec")
+                .long("exec")
+                .help("Experimental: use in conjunction with --watch to execute a command after each successful compilation")
+                .action(ArgAction::Set),
+        )
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -125,7 +131,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // If the watch flag is set, watch the input files for changes and recompile when they change
     if matches.get_flag("watch") {
-        if let Err(err) = transpiler.watch(transpile_options) {
+        let exec = matches.get_one::<String>("exec");
+        if let Err(err) = transpiler.watch(transpile_options, exec) {
             eprintln!("{err}");
             process::exit(1)
         }
