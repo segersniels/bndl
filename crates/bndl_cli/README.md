@@ -52,6 +52,7 @@ Options:
       --no-bundle          Disable automatic bundling of internal monorepo dependencies
   -m, --minify             Minify the output bundle
   -w, --watch              Experimental: watch the input files for changes and recompile when they change
+      --exec <exec>        Experimental: use in conjunction with --watch to execute a command after each successful compilation
   -h, --help               Print help
   -V, --version            Print version
 ```
@@ -60,13 +61,15 @@ Options:
 
 ### Watch
 
-As `bndl` watches files in the current workspace for changes it won't detect file changes in internal dependencies. To save on resouces and downtime between file changes and restarts `bndl` also skips the bundling of internal dependencies. To work around this you could make clever use of `nodemon` and let it watch the output directory and recompile the changed files from the internal dependencies.
+As `bndl` only watches for files in the current workspace for changes it won't detect file changes in internal dependencies. To save on resources and extended downtime between file changes and restarts, `bndl` also skips the bundling of internal dependencies. To work around this you could allow `bndl` to recompile and bundle the internal dependencies `--exec` for you.
 
 ```bash
-npx nodemon --watch <out-dir> --delay 100ms -e js,json --exec "npx turbo run build --filter <your-workspace>^... && npx bndl --only-bundle && npm run start"
+bndl --watch --exec "npx turbo run build --filter <your-workspace>^... && npx bndl --only-bundle && npm run start"
 ```
 
-The above will first build all internal dependendies (excl. the consuming application) and tell `bndl` to only bundle those internal dependencies, skipping any form of compilation. Keep in mind that this will only run when a file changes in the consuming application, not when you save the dependency itself.
+The above will first build all internal dependencies (excl. the consuming application) and tell `bndl` to only bundle those internal dependencies, skipping any form of compilation. Keep in mind that this will only run when a file changes in the consuming application, not when you save the dependency itself. So make sure you save a file in the consuming application to trigger a rebuild.
+
+Luckily due to the nice benefits of using `turbo` and the cache it provides this should be a relatively fast operation and doesn't slow down the restart much.
 
 ## Contributing
 
