@@ -25,9 +25,14 @@ impl Bundler {
 
     pub fn bundle(&self, app_out_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
         let app_dir = env::current_dir().unwrap_or(PathBuf::from("."));
-        let dependencies: std::collections::HashMap<String, std::path::PathBuf> = self
+        let dependencies = self
             .manager
             .fetch_used_dependencies(&app_dir.join("package.json"));
+
+        let exclusion_list: Vec<String> = dependencies
+            .keys()
+            .map(|name| format!("/node_modules/{}", name.to_owned()))
+            .collect();
 
         dependencies.into_par_iter().for_each(|(name, path)| {
             let config_path = path.join("tsconfig.json");
@@ -60,7 +65,7 @@ impl Bundler {
                 }
             };
 
-            match copy_dir_all(&source, &destination) {
+            match copy_dir_all(&source, &destination, Some(&exclusion_list)) {
                 Ok(_) => {
                     debug!("Copied {:?} to {:?}", source, destination);
                 }
