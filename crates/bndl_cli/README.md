@@ -4,14 +4,14 @@
 [![npm](https://img.shields.io/npm/v/bndl-cli)](https://www.npmjs.com/package/bndl-cli)
 ![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/segersniels/bndl/bin.yml)
 
-Introducing `bndl`, a basic TypeScript transpiling and bundling tool for backend monorepos. It uses [SWC](https://swc.rs/) under the hood so it benefits from the speed improvements that it brings over `tsc`.
+Introducing `bndl`, a barebones TypeScript transpiling and bundling tool for backend monorepos.
 
 <p align="center">
 <img src="https://github.com/segersniels/bndl/blob/master/resources/bndl.png?raw=true" width="250">
 
-It aims to be a near drop in replacement for people already accustomed to `tsc` and uses the `tsconfig.json` already present in your project. `bndl` goes through the monorepo, builds the current app (or package) with `swc`, identifies which dependencies are used by the consumer and copies them over to the compiled directory `node_modules` of said consumer.
+It aims to be a near drop-in replacement for those accustomed to `tsc`, utilizing the existing `tsconfig.json` in your project. `bndl` traverses the monorepo, builds the current workspace with [SWC](https://swc.rs/), identifies the dependencies used by the consumer, and copies them to the compiled directory's `node_modules`.
 
-The result? A `dist` that contains everything for your app to run. Simply copy the `dist` over to a Docker image and run it. Read more about it [here](https://niels.foo/post/typescript-monorepo-bundling-for-dummies).
+The result? An output directory containing everything necessary for your app to run. Simply copy the dist directory to a Docker image and execute it.
 
 ## Installing
 
@@ -59,20 +59,37 @@ Options:
 
 ## Known limitations
 
+### Building dependencies
+
+`bndl` only builds the current workspace, not its dependencies. You need to build internal dependencies before the consuming workspace. Using something like Turborepo, you can run `npx turbo run build --filter <your-workspace>` with a config like this:
+
+```json
+{
+    "tasks": {
+        "build": {
+            "dependsOn": ["^build"],
+            "outputs": ["dist/**"]
+        }
+    }
+}
+```
+
+This config ensures Turborepo builds internal dependencies first before the consuming workspace, making them ready for bundling.
+
 ### Watch
 
-As `bndl` only watches for files in the current workspace for changes it won't detect file changes in internal dependencies. To save on resources and extended downtime between file changes and restarts, `bndl` also skips the bundling of internal dependencies. To work around this you could allow `bndl` to recompile and bundle the internal dependencies `--exec` for you.
+`bndl` only watches the current workspace for changes, not internal dependencies. To handle this, use the `--exec` option to recompile and bundle internal dependencies.
 
 ```bash
 bndl --watch --exec "npx turbo run build --filter <your-workspace>^... && npx bndl --only-bundle && npm run start"
 ```
 
-The above will first build all internal dependencies (excl. the consuming application) and tell `bndl` to only bundle those internal dependencies, skipping any form of compilation. Keep in mind that this will only run when a file changes in the consuming application, not when you save the dependency itself. So make sure you save a file in the consuming application to trigger a rebuild.
+This command will first build all internal dependencies (excluding the consuming application) and then tell `bndl` to bundle them. Note that this triggers only when a file changes in the consuming application. Save a file in the consuming application to trigger a rebuild.
 
-Luckily due to the nice benefits of using `turbo` and the cache it provides this should be a relatively fast operation and doesn't slow down the restart much.
+Using Turborepo and its cache should make this relatively fast, minimizing delay between file changes and restarts.
 
 ## Contributing
 
-Expect a lot of missing functionality and potential things breaking. This was made with a specific use case in mind and there might be cases where functionality drifts from what you might need. Feel free to make issues or PRs adding your requested functionality.
+Expect missing functionality and potential breakage. This tool was created for a specific use case and might differ from your needs. Feel free to open issues or PRs to add the functionality you need.
 
-Please provide the provided panic log or debug logging with `RUST_LOG=debug bndl ...` so your issue can get resolved quicker.
+Submit issues with panic logs or debug information (`RUST_LOG=debug bndl ...`) for quicker resolution.
