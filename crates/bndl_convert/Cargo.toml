@@ -26,7 +26,7 @@ name = "bndl-convert"
 path = "src/main.rs"
 
 [dependencies]
-bndl_deps = { version = "1.1.1", path = "../bndl_deps" }
+bndl_deps = { version = "1.1.2", path = "../bndl_deps" }
 clap = "4.4.8"
 env_logger = "0.10.1"
 globset = "0.4.13"
