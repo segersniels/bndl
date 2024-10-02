@@ -22,7 +22,7 @@ lazy_static! {
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct YarnConfig {
     pub packages: Vec<String>,
-    pub nohoist: Vec<String>,
+    pub nohoist: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
