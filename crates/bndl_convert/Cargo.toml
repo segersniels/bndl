@@ -26,16 +26,16 @@ name = "bndl-convert"
 path = "src/main.rs"
 
 [dependencies]
-bndl_deps = { version = "1.1.2", path = "../bndl_deps" }
+bndl_deps = { version = "1.2.0", path = "../bndl_deps" }
 clap = "4.4.8"
 env_logger = "0.10.1"
 globset = "0.4.13"
 lazy_static = "1.4.0"
 log = "0.4.20"
-serde = { version = "1.0.192", features = ["derive"] }
-serde_json = "1.0.108"
-swc = "0.273.13"
-swc_common = { version = "0.33.18", features = ["tty-emitter"] }
-swc_ecma_ast = "0.112.4"
-swc_ecma_parser = "0.143.5"
-swc_ecma_transforms_module = "0.180.10"
+serde = { version = "1.0.216", features = ["derive"] }
+serde_json = "1.0.133"
+swc = "9.0.0"
+swc_common = { version = "5.0.0", features = ["tty-emitter"] }
+swc_ecma_ast = "5.0.0"
+swc_ecma_parser = "6.0.1"
+swc_ecma_transforms_module = "7.0.0"

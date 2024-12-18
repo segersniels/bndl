@@ -23,7 +23,7 @@ pub fn extend_source_map(
     }
 
     if let Some(root) = source_root {
-        source_map.set_source_root(Some(root));
+        source_map.set_source_root(Some(root.as_str()));
     } else {
         source_map.set_source_root(Some(""));
     }
