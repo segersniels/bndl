@@ -1,6 +1,6 @@
 [package]
 name = "bndl_convert"
-version = "1.3.3"
+version = "1.4.0"
 description = "Convert a tsconfig.json to an SWC compatible config"
 authors = ["Niels Segers <contact@niels.foo>"]
 edition = "2021"
